@@ -1,6 +1,6 @@
 import "server-only";
 
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 export class PromptAdminError extends Error {
   constructor(
@@ -14,8 +14,13 @@ export class PromptAdminError extends Error {
 export async function isPromptAdmin() {
   const { userId } = await auth();
   if (!userId) return false;
-  const adminIds = (process.env.ADMIN_CLERK_USER_IDS || "").split(",").map((id) => id.trim()).filter(Boolean);
-  return adminIds.includes(userId);
+  if (getBootstrapAdminIds().includes(userId)) return true;
+  const user = await (await clerkClient()).users.getUser(userId);
+  return user.privateMetadata.muvRole === "admin";
+}
+
+export function getBootstrapAdminIds() {
+  return (process.env.ADMIN_CLERK_USER_IDS || "").split(",").map((id) => id.trim()).filter(Boolean);
 }
 
 export async function assertPromptAdmin() {
