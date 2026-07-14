@@ -7,10 +7,23 @@ const ALLOWED_EXTENSIONS = new Set(["pdf", "doc", "docx", "txt", "md", "html", "
 
 export const maxDuration = 60;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await assertPromptAdmin();
     const { openai, vectorStoreId } = getKnowledgeClient();
+    const fileId = new URL(request.url).searchParams.get("fileId");
+    if (fileId) {
+      if (!fileId.startsWith("file-")) return NextResponse.json({ error: "Arquivo inválido." }, { status: 400 });
+      await openai.vectorStores.files.retrieve(fileId, { vector_store_id: vectorStoreId });
+      const [source, content] = await Promise.all([openai.files.retrieve(fileId), openai.files.content(fileId)]);
+      return new Response(content.body, {
+        headers: {
+          "Content-Type": content.headers.get("content-type") || "application/octet-stream",
+          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(source.filename)}`,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
     const page = await openai.vectorStores.files.list(vectorStoreId, { limit: 100, order: "desc" });
     const files = await Promise.all(page.data.map(async (item) => {
       try {
