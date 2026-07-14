@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { UserButton } from "@clerk/nextjs";
+import { ArrowLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { useApp } from "./app-provider";
@@ -9,7 +10,7 @@ import { Brand, ProgressBar } from "./ui";
 import { getProgress, journey } from "@/lib/journey";
 
 export function PrivateShell({ children }: { children: ReactNode }) {
-  const { data, ready, logout, update } = useApp();
+  const { data, ready, update } = useApp();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -37,7 +38,7 @@ export function PrivateShell({ children }: { children: ReactNode }) {
           <p className="text-[10px] font-bold uppercase tracking-[.18em] text-primary">MUV Starter</p>
           <p className="mt-0.5 text-xs text-muted">{pathname === "/central" ? "Visão geral" : `Etapa ${currentIndex + 1} de ${journey.length}`}</p>
         </div>
-        <button aria-label="Sair" className="grid size-9 place-items-center rounded-lg text-muted transition hover:bg-white/5 hover:text-white" onClick={() => { logout(); router.push("/entrar"); }}><LogOut size={17} /></button>
+        <UserButton />
       </div>
       <div className="mx-auto max-w-[640px] px-4 pb-3 sm:px-6">
         <ProgressBar value={progress} />

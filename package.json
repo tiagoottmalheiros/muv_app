@@ -10,6 +10,7 @@
     "knowledge:upload": "node scripts/setup-openai-vector-store.mjs"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.5.18",
     "@hookform/resolvers": "^5.4.0",
     "@supabase/supabase-js": "^2.110.5",
     "lucide-react": "^1.24.0",

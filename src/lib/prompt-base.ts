@@ -28,7 +28,7 @@ const labels = Object.fromEntries(promptQuestions.flatMap((q) => q.type === "sel
 export function getPromptLabel(value: string) {
   return labels[value] || value;
 }
-export const promptBaseSchema = z.object({ name: z.string().min(2).max(100), email: z.email(), businessName: z.string().min(2).max(120) }).passthrough();
+export const promptBaseSchema = z.object({ businessName: z.string().trim().min(2).max(120) }).passthrough();
 
 export function isPromptQuestionAnswered(q: PromptQuestion, data: PromptBaseAnswers) {
   if (q.type === "select") return Boolean(String(data[q.key]).trim()) && (!q.otherKey || data[q.key] !== "outro" || Boolean(String(data[q.otherKey]).trim()));

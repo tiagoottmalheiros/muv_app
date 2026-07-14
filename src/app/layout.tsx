@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import { AppProvider } from "@/components/app-provider";
 import "./globals.css";
@@ -8,7 +9,12 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
 };
-export const viewport: Viewport = { themeColor: "#020617", colorScheme: "dark", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = {
+  themeColor: "#020617",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+};
 
 export default function RootLayout({
   children,
@@ -17,7 +23,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="h-full antialiased">
-      <body className="min-h-full"><AppProvider>{children}</AppProvider></body>
+      <body className="min-h-full">
+        <ClerkProvider>
+          <AppProvider>{children}</AppProvider>
+        </ClerkProvider>
+      </body>
     </html>
   );
 }

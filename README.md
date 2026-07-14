@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Abra `http://localhost:3000`. Em `/entrar`, qualquer opção de acesso inicia a conta demonstrativa local. Os dados ficam em `localStorage` sob a chave `central-muv-v1`; isso é exclusivo desta fase de desenvolvimento.
+Abra `http://localhost:3000`. Use `/entrar`, `/sign-in` ou `/sign-up` para acessar com uma conta Clerk. O progresso é persistido no Supabase e mantém um fallback local isolado por `userId`.
 
 Comandos de qualidade:
 
@@ -20,14 +20,15 @@ npm run build
 
 ## Fluxo implementado
 
-- Página pública e login demonstrativo.
+- Página pública e autenticação Clerk com entrada, cadastro e menu do usuário.
 - Shell privado responsivo, menu mobile e retomada da última rota.
 - Dashboard e progresso calculado somente por entregáveis concluídos.
 - Prompt Base portado do projeto original, com 13 perguntas, condicionais, validações e texto final.
 - Raio-X portado do projeto original, com 12 perguntas, score de 0 a 36, cinco classificações e gargalo.
 - Quatro aplicações com processamento interno, instruções server-only e entregável gerado automaticamente.
 - Kit Final com cópia, TXT, impressão/PDF e status por ativo.
-- Imersão, perfil, exclusão dos dados locais e admin demonstrativo em `/admin`.
+- Imersão, perfil, exclusão dos dados locais e administração em `/admin`.
+- Prompt Studio em `/admin/prompts`, com rascunho, comparação, publicação e histórico de versões.
 - PWA instalável via manifest, ícone e metadados.
 
 ## Persistência atual
@@ -36,17 +37,17 @@ O `AppProvider` mantém estado reativo e usa `localStorage` somente como fallbac
 
 ## Processamento das etapas
 
-Os prompts não são enviados ao navegador e não aparecem para o aluno. Eles ficam em `src/lib/server/stage-prompts.ts`. A interface chama `POST /api/generate-step`, que carrega o contexto salvo no Supabase e usa a OpenAI Responses API com `file_search`. Sem a chave, a rota devolve um resultado demonstrativo.
+Os prompts não são enviados ao navegador do aluno. A versão publicada fica em `prompt_configs`; `src/lib/server/stage-prompts.ts` mantém o fallback inicial caso o Supabase esteja indisponível. A interface chama `POST /api/generate-step`, que carrega o contexto salvo no Supabase e usa a OpenAI Responses API com `file_search`. Sem a chave, a rota devolve um resultado demonstrativo.
 
-Em desenvolvimento, existe uma identidade demonstrativa server-side. Em produção, ela deve ser substituída pela identidade Clerk autenticada. O Prompt Base, o Raio-X e os entregáveis anteriores são lidos do Supabase antes da geração.
+Em `/admin/prompts`, administradores podem editar um rascunho, comparar sua resposta com a versão publicada e consultar o histórico. O estado versionado é inicializado automaticamente em `activity_events`, sem migration adicional. A identidade e a lista de administradores são validadas pelo Clerk no servidor.
 
-## Próxima fase: Clerk
+Cada operação server-side usa o `userId` validado pelo Clerk para localizar ou criar o perfil correspondente. O Prompt Base, o Raio-X e os entregáveis anteriores são lidos do Supabase antes da geração.
 
-1. Crie a aplicação no Clerk e habilite Google, Apple e código por e-mail.
-2. Preencha `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` e `CLERK_WEBHOOK_SECRET`.
-3. Instale `@clerk/nextjs`, envolva o layout com `ClerkProvider` e troque o login demonstrativo pelo fluxo Clerk.
-4. Proteja `/central(.*)` e `/admin(.*)` no middleware.
-5. No servidor, associe sempre os dados ao `clerk_user_id` validado. Não confie no e-mail do frontend.
+## Clerk
+
+O projeto está vinculado à aplicação Clerk `MUV - App`. O `ClerkProvider` fica dentro do `body`, e `src/proxy.ts` mantém apenas a landing page e as rotas de autenticação públicas. As APIs e áreas `/central` e `/admin` exigem sessão válida.
+
+Em desenvolvimento, qualquer usuário autenticado pode abrir o admin. Em produção, configure `ADMIN_CLERK_USER_IDS` com os IDs Clerk autorizados, separados por vírgula. Também configure uma instância Clerk de produção antes do deploy.
 
 ## Próxima fase: Supabase
 
