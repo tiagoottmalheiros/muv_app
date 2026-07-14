@@ -41,6 +41,7 @@ const tabs: { key: EditorTab; label: string; short: string }[] = [
   { key: "context", label: "Contexto permanente", short: "Contexto" },
   ...OUTPUT_KEYS.map((key, index) => ({ key, label: PROMPT_LABELS[key], short: `Passo ${index + 1}` })),
 ];
+const FALLBACK_MODELS = ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini", "gpt-4o"];
 
 export function PromptStudio() {
   const { data, ready } = useApp();
@@ -57,6 +58,7 @@ export function PromptStudio() {
   const [working, setWorking] = useState<"load" | "save" | "publish" | "test" | "restore" | null>("load");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [modelOptions, setModelOptions] = useState(FALLBACK_MODELS);
 
   useEffect(() => {
     if (ready && !data.authenticated) router.replace("/entrar");
@@ -73,6 +75,9 @@ export function PromptStudio() {
         if (!response.ok) throw new Error(payload.error || "Não foi possível carregar os prompts.");
         setStudio(payload);
         setEditor(toEditable(payload.draft));
+        const modelResponse = await fetch("/api/admin/models", { cache: "no-store" });
+        const modelPayload = (await modelResponse.json()) as { models?: string[] };
+        if (modelResponse.ok && modelPayload.models?.length) setModelOptions(modelPayload.models);
       } catch (caught) {
         setError(messageFrom(caught));
       } finally {
@@ -185,6 +190,7 @@ export function PromptStudio() {
 
   const isDirty = Boolean(studio && editor && JSON.stringify(editor) !== JSON.stringify(toEditable(studio.draft)));
   const activeText = editor && (activeTab === "agent" ? editor.agentInstructions : activeTab === "context" ? editor.contextPrompt : editor.stagePrompts[activeTab]);
+  const availableModels = editor ? Array.from(new Set([...modelOptions, editor.model])) : modelOptions;
 
   if (!ready || !data.authenticated) return null;
 
@@ -361,11 +367,13 @@ export function PromptStudio() {
                   <div className="mt-5 space-y-4">
                     <label className="text-muted block text-xs font-bold">
                       Modelo
-                      <input
+                      <select
                         className="field mt-2"
                         value={editor.model}
                         onChange={(event) => setEditor({ ...editor, model: event.target.value })}
-                      />
+                      >
+                        {availableModels.map((model) => <option key={model} value={model}>{model}</option>)}
+                      </select>
                     </label>
                     <label className="text-muted block text-xs font-bold">
                       Máximo de tokens
