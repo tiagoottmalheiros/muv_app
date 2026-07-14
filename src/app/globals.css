@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --card: #050816;
+  --gold: #22d3ee;
+  --gold-light: #a5f3fc;
+  --primary-dark: #0891b2;
+  --primary-light: rgba(34, 211, 238, .10);
+  --blue: #60a5fa;
+  --muted: #94a3b8;
+  --border: rgba(148, 163, 184, .18);
+  --success: #22c55e;
+  --radius: 18px;
+  --shadow: 0 28px 80px rgba(0, 0, 0, .55);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-primary: var(--gold);
+  --color-muted: var(--muted);
+  --color-success: var(--success);
+}
+
+* { box-sizing: border-box; }
+html { background: var(--background); }
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100vh;
+}
+button, a, input, textarea { outline-color: var(--gold); }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+::selection { background: rgba(34, 211, 238, .28); color: white; }
+.bg-app { background: radial-gradient(circle at 20% 0%, rgba(34,211,238,.13), transparent 32%), radial-gradient(circle at 85% 18%, rgba(59,130,246,.12), transparent 28%), linear-gradient(180deg,#020617 0%,#000 100%); }
+.display-title { max-width: 640px; font-size: clamp(1.65rem, 5vw, 2.25rem); font-weight: 750; line-height: 1.2; letter-spacing: -.03em; color: white; }
+.eyebrow { margin-bottom: .75rem; color: var(--gold); font-size: .7rem; font-weight: 800; letter-spacing: .19em; text-transform: uppercase; }
+.font-serif { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); padding: 1.25rem; box-shadow: var(--shadow); }
+.button { display: inline-flex; min-height: 2.65rem; align-items: center; justify-content: center; gap: .5rem; border-radius: 999px; padding: .65rem 1.25rem; font-size: .82rem; font-weight: 600; transition: .2s ease; }
+.button:disabled { cursor: not-allowed; opacity: .42; }
+.button-primary { border: 1px solid transparent; background: linear-gradient(135deg, var(--gold), var(--blue)); color: #020617; }
+.button-primary:hover:not(:disabled) { box-shadow: 0 12px 28px rgba(34,211,238,.22); transform: translateY(-1px); }
+.button-secondary { border: 1px solid rgba(34,211,238,.28); background: rgba(34,211,238,.07); color: var(--gold-light); }
+.button-secondary:hover:not(:disabled) { border-color: rgba(34,211,238,.58); background: rgba(34,211,238,.12); }
+.button-ghost { color: var(--muted); }
+.button-ghost:hover { background: rgba(255,255,255,.05); color: white; }
+.nav-link { display: flex; min-height: 2.6rem; align-items: center; gap: .7rem; border-radius: .7rem; padding: .6rem .75rem; color: #8f8e89; font-size: .79rem; transition: .18s; }
+.nav-link:hover { background: rgba(255,255,255,.04); color: white; }
+.nav-link-active { background: rgba(34,211,238,.09); color: #a5f3fc; }
+.field { width: 100%; border: 1px solid var(--border); border-radius: 12px; background: rgba(15,23,42,.72); padding: 12px 16px; color: var(--foreground); transition: .2s; }
+.field:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(34,211,238,.10); }
+.field::placeholder { color: #64748b; }
+textarea.field { min-height: 180px; resize: vertical; line-height: 1.6; }
+.option { width: 100%; border: 1px solid var(--border); border-radius: 12px; background: rgba(15,23,42,.58); padding: 14px 16px; text-align: left; color: var(--foreground); transition: .18s; }
+.option:hover { border-color: rgba(34,211,238,.55); background: var(--primary-light); color: #e0faff; }
+.option-selected { border-color: var(--gold); background: var(--primary-light); color: white; box-shadow: 0 0 0 1px rgba(34,211,238,.35), 0 0 28px rgba(34,211,238,.08); }
+@media print { aside, header, .no-print, .button { display: none !important; } .lg\:pl-72 { padding-left: 0 !important; } body { background: white; color: black; } .card { break-inside: avoid; border-color: #bbb; background: white; } }
