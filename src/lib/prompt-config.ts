@@ -12,6 +12,7 @@ const promptTextSchema = z.string().trim().min(20, "O prompt precisa ter pelo me
 
 export const editablePromptConfigSchema = z.object({
   agentInstructions: promptTextSchema,
+  contextPrompt: z.string().trim().max(30000),
   stagePrompts: z.object(
     Object.fromEntries(OUTPUT_KEYS.map((key) => [key, promptTextSchema])) as Record<OutputKey, typeof promptTextSchema>,
   ),

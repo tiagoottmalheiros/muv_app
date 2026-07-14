@@ -17,7 +17,7 @@ export async function generateWithMuvAgent(
   const startedAt = Date.now();
   const response = await openai.responses.create({
     model: config.model,
-    instructions: `${config.agentInstructions}\n\nINSTRUÇÃO DA ETAPA\n${config.stagePrompts[lessonKey]}`,
+    instructions: `${config.agentInstructions}\n\nCONTEXTO PERMANENTE\n${config.contextPrompt}\n\nINSTRUÇÃO DA ETAPA\n${config.stagePrompts[lessonKey]}`,
     input: `CONTEXTO ESTRUTURADO DO ALUNO\n${JSON.stringify(context)}`,
     tools: vectorStoreId ? [{ type: "file_search", vector_store_ids: [vectorStoreId], max_num_results: 8 }] : undefined,
     max_output_tokens: config.maxOutputTokens,

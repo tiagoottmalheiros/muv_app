@@ -39,7 +39,7 @@ O `AppProvider` mantém estado reativo e usa `localStorage` somente como fallbac
 
 Os prompts não são enviados ao navegador do aluno. A versão publicada fica em `prompt_configs`; `src/lib/server/stage-prompts.ts` mantém o fallback inicial caso o Supabase esteja indisponível. A interface chama `POST /api/generate-step`, que carrega o contexto salvo no Supabase e usa a OpenAI Responses API com `file_search`. Sem a chave, a rota devolve um resultado demonstrativo.
 
-Em `/admin/prompts`, administradores podem editar um rascunho, comparar sua resposta com a versão publicada e consultar o histórico. O estado versionado é inicializado automaticamente em `activity_events`, sem migration adicional. A identidade e a lista de administradores são validadas pelo Clerk no servidor.
+Em `/admin/prompts`, administradores podem editar a instrução geral, o contexto permanente e os prompts das etapas, comparar o rascunho com a versão publicada e consultar o histórico. A mesma página lista, envia e remove documentos do Vector Store usado pelo `file_search`; uploads administrativos aceitam PDF, DOC, DOCX, TXT, Markdown, HTML e PPTX de até 4 MB. O estado versionado é inicializado automaticamente em `activity_events`, sem migration adicional. A identidade e a lista de administradores são validadas pelo Clerk no servidor.
 
 Cada operação server-side usa o `userId` validado pelo Clerk para localizar ou criar o perfil correspondente. O Prompt Base, o Raio-X e os entregáveis anteriores são lidos do Supabase antes da geração.
 

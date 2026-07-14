@@ -10,7 +10,7 @@ export async function loadPromptStudioState(): Promise<PromptStudioState> {
   const supabase = createSupabaseAdminClient();
   const result = await supabase.from("activity_events").select("event_data").eq("event_name", EVENT_NAME).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (result.error) throw result.error;
-  if (result.data?.event_data) return result.data.event_data as PromptStudioState;
+  if (result.data?.event_data) return normalizeState(result.data.event_data as PromptStudioState);
 
   const initial = createInitialState();
   await persistState(initial);
@@ -51,6 +51,7 @@ export async function restorePromptVersion(sourceId: string) {
   const draft: PromptConfig = {
     ...state.draft,
     agentInstructions: source.agentInstructions,
+    contextPrompt: source.contextPrompt,
     stagePrompts: { ...source.stagePrompts },
     model: source.model,
     maxOutputTokens: source.maxOutputTokens,
@@ -74,4 +75,10 @@ function createInitialState(): PromptStudioState {
   const published: PromptConfig = { ...defaults, id: crypto.randomUUID(), version: 1, status: "published", createdAt: now, updatedAt: now, publishedAt: now };
   const draft: PromptConfig = { ...defaults, id: crypto.randomUUID(), version: 2, status: "draft", changeNotes: "", createdAt: now, updatedAt: now };
   return { draft, published, history: [published] };
+}
+
+function normalizeState(state: PromptStudioState): PromptStudioState {
+  const fallback = getDefaultPromptConfig().contextPrompt;
+  const normalize = (config: PromptConfig): PromptConfig => ({ ...config, contextPrompt: config.contextPrompt ?? fallback });
+  return { draft: normalize(state.draft), published: normalize(state.published), history: state.history.map(normalize) };
 }

@@ -17,6 +17,7 @@ import {
 import { useEffect, useState } from "react";
 import { useApp } from "./app-provider";
 import { Brand, Button } from "./ui";
+import { KnowledgeManager } from "./knowledge-manager";
 import {
   PROMPT_LABELS,
   type EditablePromptConfig,
@@ -25,7 +26,7 @@ import {
 } from "@/lib/prompt-config";
 import { OUTPUT_KEYS, type OutputKey } from "@/lib/types";
 
-type EditorTab = "agent" | OutputKey;
+type EditorTab = "agent" | "context" | OutputKey;
 type TestResult = {
   content: string;
   model: string;
@@ -37,6 +38,7 @@ type TestResult = {
 
 const tabs: { key: EditorTab; label: string; short: string }[] = [
   { key: "agent", label: "Instrução geral", short: "Agente" },
+  { key: "context", label: "Contexto permanente", short: "Contexto" },
   ...OUTPUT_KEYS.map((key, index) => ({ key, label: PROMPT_LABELS[key], short: `Passo ${index + 1}` })),
 ];
 
@@ -182,7 +184,7 @@ export function PromptStudio() {
   }
 
   const isDirty = Boolean(studio && editor && JSON.stringify(editor) !== JSON.stringify(toEditable(studio.draft)));
-  const activeText = editor && (activeTab === "agent" ? editor.agentInstructions : editor.stagePrompts[activeTab]);
+  const activeText = editor && (activeTab === "agent" ? editor.agentInstructions : activeTab === "context" ? editor.contextPrompt : editor.stagePrompts[activeTab]);
 
   if (!ready || !data.authenticated) return null;
 
@@ -263,7 +265,7 @@ export function PromptStudio() {
                       <span
                         className={`grid size-7 shrink-0 place-items-center rounded-lg text-[10px] font-black ${activeTab === tab.key ? "bg-primary/15" : "bg-white/5"}`}
                       >
-                        {tab.key === "agent" ? <Sparkles size={13} /> : tab.short.replace("Passo ", "0")}
+                        {tab.key === "agent" || tab.key === "context" ? <Sparkles size={13} /> : tab.short.replace("Passo ", "0")}
                       </span>
                       {tab.label}
                     </button>
@@ -280,7 +282,7 @@ export function PromptStudio() {
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <p className="text-gold text-[10px] font-bold tracking-[.16em] uppercase">
-                        {activeTab === "agent" ? "Aplicado em todas as etapas" : "Instrução específica"}
+                        {activeTab === "agent" ? "Comportamento do agente" : activeTab === "context" ? "Referência permanente" : "Instrução específica"}
                       </p>
                       <h2 className="mt-1 text-xl font-semibold text-white">
                         {tabs.find((tab) => tab.key === activeTab)?.label}
@@ -305,14 +307,17 @@ export function PromptStudio() {
                         current
                           ? activeTab === "agent"
                             ? { ...current, agentInstructions: event.target.value }
-                            : { ...current, stagePrompts: { ...current.stagePrompts, [activeTab]: event.target.value } }
+                            : activeTab === "context"
+                              ? { ...current, contextPrompt: event.target.value }
+                              : { ...current, stagePrompts: { ...current.stagePrompts, [activeTab]: event.target.value } }
                           : current,
                       )
                     }
                   />
                   <p className="text-muted mt-3 text-xs leading-5">
-                    Use instruções objetivas, formato de saída explícito e regras verificáveis. Os dados do aluno são
-                    adicionados separadamente pelo servidor.
+                    {activeTab === "context"
+                      ? "Adicione aqui contexto, metodologia, premissas e referências que devem acompanhar todas as respostas."
+                      : "Use instruções objetivas, formato de saída explícito e regras verificáveis. Os dados do aluno são adicionados separadamente pelo servidor."}
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 border-t border-white/8 bg-white/[.015] p-5 sm:flex-row sm:items-center sm:justify-between md:px-7">
@@ -434,6 +439,8 @@ export function PromptStudio() {
               </section>
             )}
 
+            <KnowledgeManager />
+
             <section className="mt-9">
               <div className="mb-4 flex items-center gap-3">
                 <History className="text-primary" size={20} />
@@ -514,6 +521,7 @@ function ResultCard({ title, result, highlight = false }: { title: string; resul
 function toEditable(config: PromptConfig): EditablePromptConfig {
   return {
     agentInstructions: config.agentInstructions,
+    contextPrompt: config.contextPrompt,
     stagePrompts: { ...config.stagePrompts },
     model: config.model,
     maxOutputTokens: config.maxOutputTokens,
