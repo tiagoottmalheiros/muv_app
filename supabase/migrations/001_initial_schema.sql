@@ -12,12 +12,12 @@ create table entitlements (
 );
 create index entitlements_profile_product_idx on entitlements(profile_id, product_code);
 create table prompt_base_submissions (
-  id uuid primary key default gen_random_uuid(), profile_id uuid not null references profiles(id) on delete cascade, answers jsonb not null default '{}',
+  id uuid primary key default gen_random_uuid(), profile_id uuid unique not null references profiles(id) on delete cascade, answers jsonb not null default '{}',
   generated_text text, status text not null default 'draft', completed_at timestamptz, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 create table funnel_xray_submissions (
-  id uuid primary key default gen_random_uuid(), profile_id uuid not null references profiles(id) on delete cascade, answers jsonb not null default '[]',
-  score numeric, classification text, generated_text text, status text not null default 'draft', completed_at timestamptz, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+  id uuid primary key default gen_random_uuid(), profile_id uuid unique not null references profiles(id) on delete cascade, answers jsonb not null default '[]',
+  score numeric, classification text, leak_level text, main_bottleneck text, generated_text text, status text not null default 'draft', completed_at timestamptz, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 create table lesson_progress (
   id uuid primary key default gen_random_uuid(), profile_id uuid not null references profiles(id) on delete cascade, lesson_key text not null,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generationRequestSchema, getDevelopmentContext } from "@/lib/server/student-context";
 import { stagePrompts } from "@/lib/server/stage-prompts";
+import { loadDevelopmentStudentState } from "@/lib/server/student-repository";
 
 export async function POST(request: Request) {
   try {
@@ -8,7 +9,18 @@ export async function POST(request: Request) {
     if (!parsed.success) return NextResponse.json({ error: "Contexto inválido para processamento." }, { status: 400 });
 
     const { lessonKey } = parsed.data;
-    const context = getDevelopmentContext(parsed.data.context);
+    const storedState = process.env.SUPABASE_SERVICE_ROLE_KEY ? await loadDevelopmentStudentState() : null;
+    const context = storedState ? {
+      promptBase: storedState.promptBase.answers,
+      xray: {
+        score: storedState.xray.score,
+        classification: storedState.xray.classification,
+        leakLevel: storedState.xray.leakLevel,
+        bottleneck: storedState.xray.bottleneck,
+        answers: storedState.xray.answers,
+      },
+      previousOutputs: Object.fromEntries(Object.entries(storedState.outputs).map(([key, output]) => [key, output?.content ?? ""])),
+    } : getDevelopmentContext(parsed.data.context);
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) return NextResponse.json({ content: buildDevelopmentResult(lessonKey, context), mode: "demo" });

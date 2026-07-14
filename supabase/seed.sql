@@ -1,0 +1,1 @@
+-- Development seed data can be added here when Clerk test identities are configured.

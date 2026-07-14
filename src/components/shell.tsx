@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { useApp } from "./app-provider";
@@ -20,14 +20,20 @@ export function PrivateShell({ children }: { children: ReactNode }) {
   if (!ready || !data.authenticated || data.entitlement !== "active") return <div className="grid min-h-screen place-items-center text-sm text-muted">Preparando sua experiência...</div>;
 
   const progress = getProgress(data);
-  const currentIndex = Math.max(0, journey.findIndex((step) => step.href === pathname));
+  const matchedIndex = journey.findIndex((step) => step.href === pathname);
+  const currentIndex = Math.max(0, matchedIndex);
   const current = journey[currentIndex];
+  const previousHref = pathname === "/central" ? null : matchedIndex > 0 ? journey[matchedIndex - 1].href : "/central";
+  const previousLabel = matchedIndex > 0 ? journey[matchedIndex - 1].short : "Visão Geral";
 
   return <div className="min-h-screen bg-app">
     <header className="sticky top-0 z-30 border-b border-white/8 bg-[#020617]/92 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-[640px] items-center justify-between px-4 sm:px-6">
-        <Link href="/central"><Brand compact /></Link>
-        <div className="text-center">
+      <div className="relative mx-auto flex h-16 max-w-[640px] items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-2">
+          {previousHref && <Link href={previousHref} aria-label="Voltar para a etapa anterior" title="Etapa anterior" className="grid size-9 place-items-center rounded-lg border border-white/8 text-muted transition hover:border-primary/30 hover:bg-primary/5 hover:text-primary"><ArrowLeft size={17} /></Link>}
+          <Link href="/central"><Brand compact /></Link>
+        </div>
+        <div className="absolute left-1/2 -translate-x-1/2 text-center">
           <p className="text-[10px] font-bold uppercase tracking-[.18em] text-primary">MUV Starter</p>
           <p className="mt-0.5 text-xs text-muted">{pathname === "/central" ? "Visão geral" : `Etapa ${currentIndex + 1} de ${journey.length}`}</p>
         </div>
@@ -41,6 +47,9 @@ export function PrivateShell({ children }: { children: ReactNode }) {
         </div>
       </div>
     </header>
-    <main className="mx-auto max-w-[640px] px-4 py-8 pb-20 sm:px-6 sm:py-12">{children}</main>
+    <main className="mx-auto max-w-[640px] px-4 py-8 pb-20 sm:px-6 sm:py-12">
+      {children}
+      {previousHref && <div className="mt-8 border-t border-white/8 pt-6"><Link href={previousHref} className="button button-secondary w-full"><ArrowLeft size={16} />Voltar para {previousLabel}</Link></div>}
+    </main>
   </div>;
 }
