@@ -170,6 +170,23 @@ export async function recordDevelopmentGeneration(input: { outputKey: string; mo
   if (result.error) throw result.error;
 }
 
+export async function resetAuthenticatedStudentJourney() {
+  const supabase = createSupabaseAdminClient();
+  const profile = await getOrCreateAuthenticatedProfile();
+  const results = await Promise.all([
+    supabase.from("ai_generations").delete().eq("profile_id", profile.id),
+    supabase.from("student_outputs").delete().eq("profile_id", profile.id),
+    supabase.from("lesson_progress").delete().eq("profile_id", profile.id),
+    supabase.from("funnel_xray_submissions").delete().eq("profile_id", profile.id),
+    supabase.from("prompt_base_submissions").delete().eq("profile_id", profile.id),
+    supabase.from("immersion_registrations").delete().eq("profile_id", profile.id),
+    supabase.from("activity_events").delete().eq("profile_id", profile.id),
+    supabase.from("profiles").update({ last_route: "/central/comece-aqui", last_access_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", profile.id),
+  ]);
+  const error = results.find((result) => result.error)?.error;
+  if (error) throw error;
+}
+
 async function getOrCreateAuthenticatedProfile() {
   const [{ userId }, clerkUser] = await Promise.all([auth(), currentUser()]);
   if (!userId) throw new Error("Sessão Clerk não autenticada.");

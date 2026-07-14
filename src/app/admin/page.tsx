@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Download, Search, Shield, Sparkles, Upload, UserCheck, UserX } from "lucide-react";
+import { Download, LoaderCircle, RotateCcw, Search, Shield, Sparkles, Upload, UserCheck, UserX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useApp } from "@/components/app-provider";
@@ -9,10 +9,12 @@ import { Brand, Button, ProgressBar } from "@/components/ui";
 import { getProgress } from "@/lib/journey";
 
 export default function AdminPage() {
-  const { data, ready, update } = useApp();
+  const { data, ready, reset, update } = useApp();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [imported, setImported] = useState<string[]>([]);
+  const [resetting, setResetting] = useState(false);
+  const [error, setError] = useState("");
   useEffect(() => {
     if (ready && !data.authenticated) router.replace("/entrar");
   }, [ready, data.authenticated, router]);
@@ -35,6 +37,22 @@ export default function AdminPage() {
     };
     reader.readAsText(file);
   }
+  async function restartJourney() {
+    if (!window.confirm("Reiniciar sua jornada de teste? Suas respostas, resultados e progresso atuais serão apagados.")) return;
+    setResetting(true);
+    setError("");
+    try {
+      const response = await fetch("/api/student/state", { method: "DELETE" });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Não foi possível reiniciar a jornada.");
+      reset();
+      router.push("/central/comece-aqui");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível reiniciar a jornada.");
+    } finally {
+      setResetting(false);
+    }
+  }
   return (
     <main className="bg-app min-h-screen">
       <header className="flex h-20 items-center justify-between border-b border-white/8 px-5 md:px-10">
@@ -54,7 +72,7 @@ export default function AdminPage() {
           <div>
             <p className="eyebrow">Operação do MVP</p>
             <h1 className="font-serif text-4xl text-white">Administração de acessos</h1>
-            <p className="text-muted mt-2 text-sm">Ambiente local de demonstração. A proteção por Clerk ID será aplicada na integração.</p>
+            <p className="text-muted mt-2 text-sm">Gerencie o acesso e reinicie sua própria jornada para testar a experiência como aluno.</p>
           </div>
           <div className="flex gap-2">
             <label className="button button-secondary">
@@ -66,8 +84,13 @@ export default function AdminPage() {
               <Download size={16} />
               Exportar progresso
             </Button>
+            <Button variant="ghost" disabled={resetting} onClick={() => void restartJourney()}>
+              {resetting ? <LoaderCircle className="animate-spin" size={16} /> : <RotateCcw size={16} />}
+              Testar como aluno
+            </Button>
           </div>
         </div>
+        {error && <div className="mt-5 rounded-xl border border-red-400/20 bg-red-400/7 p-4 text-sm text-red-200">{error}</div>}
         {imported.length > 0 && <div className="border-success/20 bg-success/8 text-success mt-5 rounded-xl border p-4 text-sm">{imported.length} comprador(es) lido(s) do CSV. A gravação será conectada ao Supabase posteriormente.</div>}
         <div className="card mt-8">
           <div className="relative max-w-md">

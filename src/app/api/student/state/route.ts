@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { loadDevelopmentStudentState, saveDevelopmentStudentState } from "@/lib/server/student-repository";
+import { loadDevelopmentStudentState, resetAuthenticatedStudentJourney, saveDevelopmentStudentState } from "@/lib/server/student-repository";
+import { assertPromptAdmin, PromptAdminError } from "@/lib/server/prompt-admin";
 import type { AppData } from "@/lib/types";
 
 export async function GET() {
@@ -20,5 +21,17 @@ export async function PUT(request: Request) {
   } catch (error) {
     console.error("Failed to save student state", error);
     return NextResponse.json({ error: "Não foi possível salvar no Supabase." }, { status: 503 });
+  }
+}
+
+export async function DELETE() {
+  try {
+    await assertPromptAdmin();
+    await resetAuthenticatedStudentJourney();
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Failed to reset student state", error);
+    const status = error instanceof PromptAdminError ? error.status : 503;
+    return NextResponse.json({ error: error instanceof PromptAdminError ? error.message : "Não foi possível reiniciar sua jornada." }, { status });
   }
 }
