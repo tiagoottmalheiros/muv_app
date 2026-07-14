@@ -29,8 +29,8 @@ function XrayResult({ answers, score, result, bottleneck, savedAt, onEdit }: { a
   const scorePercent = Math.round((score / 36) * 100);
 
   return <section className="mx-auto max-w-3xl">
-    <div className="mb-6 text-center"><p className="eyebrow">Diagnóstico concluído</p><h2 className="text-2xl font-bold text-white">Seu Raio-X está pronto</h2><div className="mt-3 flex justify-center"><AutoSaveStatus date={savedAt} /></div></div>
-    <div className="mt-5"><VideoLesson title="Raio-X Anti-Curiosos: Como diagnosticar seu funil" /></div>
+    <VideoLesson title="Raio-X Anti-Curiosos: Como diagnosticar seu funil" />
+    <div className="my-6 text-center"><p className="eyebrow">Diagnóstico concluído</p><h2 className="text-2xl font-bold text-white">Seu Raio-X está pronto</h2><div className="mt-3 flex justify-center"><AutoSaveStatus date={savedAt} /></div></div>
     <div className="card overflow-hidden p-0">
       <div className="grid items-center gap-6 border-b border-white/8 bg-[radial-gradient(circle_at_80%_20%,rgba(34,211,238,.13),transparent_40%)] p-6 sm:grid-cols-[auto_1fr] sm:p-8">
         <div className="relative mx-auto grid size-28 place-items-center rounded-full" style={{ background: `conic-gradient(#22d3ee ${scorePercent}%, rgba(148,163,184,.14) 0)` }}><div className="grid size-[92px] place-items-center rounded-full bg-[#050816] text-center"><div><strong className="block text-2xl text-white">{score}</strong><span className="text-[10px] text-muted">de 36</span></div></div></div>

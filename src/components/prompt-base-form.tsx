@@ -38,8 +38,8 @@ function PromptBaseResult({ answers, savedAt, onEdit }: { answers: PromptBaseAns
   ];
 
   return <section className="mx-auto max-w-3xl">
-    <div className="mb-6 text-center"><p className="eyebrow">Etapa concluída</p><h2 className="text-2xl font-bold text-white">Sua base estratégica está pronta</h2><div className="mt-3 flex justify-center"><AutoSaveStatus date={savedAt} /></div></div>
-    <div className="mt-5"><VideoLesson title="Prompt Base: Como construir seu contexto estratégico" /></div>
+    <VideoLesson title="Prompt Base: Como construir seu contexto estratégico" />
+    <div className="my-6 text-center"><p className="eyebrow">Etapa concluída</p><h2 className="text-2xl font-bold text-white">Sua base estratégica está pronta</h2><div className="mt-3 flex justify-center"><AutoSaveStatus date={savedAt} /></div></div>
     <div className="card overflow-hidden p-0">
       <div className="border-b border-white/8 bg-[radial-gradient(circle_at_85%_15%,rgba(34,211,238,.12),transparent_38%)] p-6 sm:p-8">
         <span className="inline-flex rounded-full border border-primary/25 bg-primary/8 px-3 py-1 text-[10px] font-bold uppercase tracking-[.14em] text-primary">{segment}</span>
