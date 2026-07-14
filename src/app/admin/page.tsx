@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Crown, LoaderCircle, RotateCcw, Search, Shield, ShieldMinus, Sparkles, UserPlus } from "lucide-react";
+import { Crown, KeyRound, LoaderCircle, Mail, RotateCcw, Search, Shield, ShieldMinus, Sparkles, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useApp } from "@/components/app-provider";
 import { Brand, Button } from "@/components/ui";
 
@@ -26,7 +26,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [student, setStudent] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   async function loadUsers() {
     setLoading(true);
@@ -74,6 +77,29 @@ export default function AdminPage() {
     }
   }
 
+  async function createStudent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCreating(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(student),
+      });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Não foi possível criar o aluno.");
+      setNotice(`Aluno ${student.email} criado com acesso ativo.`);
+      setStudent({ name: "", email: "", password: "" });
+      await loadUsers();
+    } catch (caught) {
+      setError(messageFrom(caught));
+    } finally {
+      setCreating(false);
+    }
+  }
+
   async function restartJourney() {
     if (!window.confirm("Reiniciar sua jornada de teste? Suas respostas, resultados e progresso atuais serão apagados.")) return;
     setResetting(true);
@@ -97,8 +123,10 @@ export default function AdminPage() {
   return <main className="bg-app min-h-screen">
     <header className="flex h-20 items-center justify-between border-b border-white/8 px-5 md:px-10"><Brand /><div className="flex items-center gap-2"><Link href="/admin/prompts" className="button button-secondary"><Sparkles size={16} />Prompts</Link><Link href="/central" className="button button-ghost">Central</Link></div></header>
     <div className="mx-auto max-w-6xl p-5 md:p-10">
-      <div className="flex flex-wrap items-end justify-between gap-5"><div><p className="eyebrow">Acesso administrativo</p><h1 className="text-4xl font-bold text-white">Administradores</h1><p className="mt-2 text-sm text-muted">Escolha quais usuários podem acessar o painel e gerenciar o agente.</p></div><Button variant="secondary" disabled={resetting} onClick={() => void restartJourney()}>{resetting ? <LoaderCircle className="animate-spin" size={16} /> : <RotateCcw size={16} />}Testar como aluno</Button></div>
+      <div className="flex flex-wrap items-end justify-between gap-5"><div><p className="eyebrow">Gestão de acessos</p><h1 className="text-4xl font-bold text-white">Alunos e administradores</h1><p className="mt-2 text-sm text-muted">Crie novos alunos e escolha quem também pode administrar o ambiente.</p></div><Button variant="secondary" disabled={resetting} onClick={() => void restartJourney()}>{resetting ? <LoaderCircle className="animate-spin" size={16} /> : <RotateCcw size={16} />}Testar como aluno</Button></div>
       {error && <div className="mt-5 rounded-xl border border-red-400/20 bg-red-400/7 p-4 text-sm text-red-200">{error}</div>}
+      {notice && <div className="mt-5 rounded-xl border border-success/20 bg-success/7 p-4 text-sm text-success">{notice}</div>}
+      <section className="card mt-8"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><UserPlus size={18} /></div><div><h2 className="font-semibold text-white">Adicionar novo aluno</h2><p className="text-xs text-muted">O aluno será criado com acesso ativo, sem permissão administrativa.</p></div></div><form className="mt-5 grid gap-4 md:grid-cols-3" onSubmit={(event) => void createStudent(event)}><label className="text-xs font-bold text-muted">Nome completo<input className="field mt-2" required minLength={2} maxLength={120} value={student.name} onChange={(event) => setStudent({ ...student, name: event.target.value })} placeholder="Nome do aluno" /></label><label className="text-xs font-bold text-muted">E-mail<div className="relative mt-2"><Mail className="absolute left-3 top-3.5 text-muted" size={15} /><input className="field pl-9" type="email" required value={student.email} onChange={(event) => setStudent({ ...student, email: event.target.value })} placeholder="aluno@email.com" /></div></label><label className="text-xs font-bold text-muted">Senha temporária<div className="relative mt-2"><KeyRound className="absolute left-3 top-3.5 text-muted" size={15} /><input className="field pl-9" type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={student.password} onChange={(event) => setStudent({ ...student, password: event.target.value })} placeholder="Mínimo de 8 caracteres" /></div></label><div className="md:col-span-3"><Button disabled={creating} type="submit">{creating ? <LoaderCircle className="animate-spin" size={16} /> : <UserPlus size={16} />}{creating ? "Criando aluno..." : "Criar aluno e liberar acesso"}</Button></div></form></section>
       <section className="card mt-8"><div className="relative max-w-md"><Search className="absolute left-3 top-3.5 text-muted" size={16} /><input className="field pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar usuário por nome ou e-mail" /></div></section>
       <section className="mt-4 overflow-hidden rounded-2xl border border-white/8 bg-[#050816]">
         <div className="hidden grid-cols-[1fr_180px_230px] border-b border-white/8 bg-white/[.03] px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted md:grid"><span>Usuário</span><span>Função</span><span>Ação</span></div>
