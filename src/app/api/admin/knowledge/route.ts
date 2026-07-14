@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { createOpenAIClient } from "@/lib/openai/client";
 import { assertPromptAdmin, PromptAdminError } from "@/lib/server/prompt-admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set(["pdf", "doc", "docx", "txt", "md", "html", "pptx"]);
+const STORAGE_BUCKET = "agent-knowledge";
 
 export const maxDuration = 60;
 
@@ -15,10 +17,10 @@ export async function GET(request: Request) {
     if (fileId) {
       if (!fileId.startsWith("file-")) return NextResponse.json({ error: "Arquivo inválido." }, { status: 400 });
       await openai.vectorStores.files.retrieve(fileId, { vector_store_id: vectorStoreId });
-      const [source, content] = await Promise.all([openai.files.retrieve(fileId), openai.files.content(fileId)]);
-      return new Response(content.body, {
+      const [source, stored] = await Promise.all([openai.files.retrieve(fileId), downloadStoredFile(fileId)]);
+      return new Response(stored, {
         headers: {
-          "Content-Type": content.headers.get("content-type") || "application/octet-stream",
+          "Content-Type": stored.type || "application/octet-stream",
           "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(source.filename)}`,
           "Cache-Control": "private, no-store",
         },
@@ -52,10 +54,12 @@ export async function POST(request: Request) {
     const { openai, vectorStoreId } = getKnowledgeClient();
     const uploaded = await openai.files.create({ file, purpose: "assistants" });
     try {
+      await storeFile(uploaded.id, file);
       const attached = await openai.vectorStores.files.createAndPoll(vectorStoreId, { file_id: uploaded.id });
       if (attached.status !== "completed") throw new Error(attached.last_error?.message || "A indexação do arquivo falhou.");
       return NextResponse.json({ ok: true, id: uploaded.id });
     } catch (error) {
+      await removeStoredFile(uploaded.id).catch(() => undefined);
       await openai.files.delete(uploaded.id).catch(() => undefined);
       throw error;
     }
@@ -71,6 +75,7 @@ export async function DELETE(request: Request) {
     if (!fileId?.startsWith("file-")) return NextResponse.json({ error: "Arquivo inválido." }, { status: 400 });
     const { openai, vectorStoreId } = getKnowledgeClient();
     await openai.vectorStores.files.delete(fileId, { vector_store_id: vectorStoreId });
+    await removeStoredFile(fileId).catch(() => undefined);
     await openai.files.delete(fileId).catch(() => undefined);
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -82,6 +87,36 @@ function getKnowledgeClient() {
   const vectorStoreId = process.env.OPENAI_VECTOR_STORE_ID;
   if (!vectorStoreId) throw new Error("OPENAI_VECTOR_STORE_ID não foi configurado.");
   return { openai: createOpenAIClient(), vectorStoreId };
+}
+
+async function ensureStorageBucket() {
+  const supabase = createSupabaseAdminClient();
+  const buckets = await supabase.storage.listBuckets();
+  if (buckets.error) throw buckets.error;
+  if (!buckets.data.some((bucket) => bucket.name === STORAGE_BUCKET)) {
+    const created = await supabase.storage.createBucket(STORAGE_BUCKET, { public: false, fileSizeLimit: MAX_FILE_SIZE });
+    if (created.error && !created.error.message.toLowerCase().includes("already exists")) throw created.error;
+  }
+  return supabase;
+}
+
+async function storeFile(fileId: string, file: File) {
+  const supabase = await ensureStorageBucket();
+  const result = await supabase.storage.from(STORAGE_BUCKET).upload(fileId, await file.arrayBuffer(), { contentType: file.type || "application/octet-stream", upsert: true });
+  if (result.error) throw result.error;
+}
+
+async function downloadStoredFile(fileId: string) {
+  const supabase = createSupabaseAdminClient();
+  const result = await supabase.storage.from(STORAGE_BUCKET).download(fileId);
+  if (result.error) throw new Error("A cópia original deste arquivo ainda não está disponível para download.");
+  return result.data;
+}
+
+async function removeStoredFile(fileId: string) {
+  const supabase = createSupabaseAdminClient();
+  const result = await supabase.storage.from(STORAGE_BUCKET).remove([fileId]);
+  if (result.error) throw result.error;
 }
 
 function handleError(context: string, error: unknown) {
