@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "./app-provider";
-import { AutoSaveStatus, Button, ProgressBar } from "./ui";
+import { AutoSaveStatus, Button, ProgressBar, VideoLesson } from "./ui";
 import { generatePromptBase, getPromptLabel, isPromptQuestionAnswered, promptBaseSchema, promptQuestions, type PromptQuestion } from "@/lib/prompt-base";
 import type { PromptBaseAnswers } from "@/lib/types";
 
@@ -18,7 +18,7 @@ export function PromptBaseForm() {
   const generated = generatePromptBase(answers);
   function setField(key: keyof PromptBaseAnswers, value: string | boolean) { setAnswers((current) => ({ ...current, [key]: value })); }
   function finish() { const now = new Date().toISOString(); update((current) => ({ ...current, promptBase: { answers, generatedText: generated, completed: true, currentStep: promptQuestions.length, updatedAt: now }, startedSteps: [...new Set([...current.startedSteps, "prompt-base"])] })); setSavedAt(now); setStep(promptQuestions.length + 1); }
-  if (step === 0) return <section className="card mx-auto max-w-3xl p-6 md:p-9"><p className="eyebrow">Base estratégica</p><h2 className="text-2xl font-bold text-white">Explique seu negócio para a Central</h2><p className="mt-4 leading-7 text-muted">Para começar, informe o nome do seu negócio. Seu nome e e-mail serão obtidos automaticamente da sua conta.</p><div className="mt-7"><label className="text-xs font-bold text-muted">Nome do seu negócio<input autoFocus className="field mt-2" value={answers.businessName} onChange={(e) => setField("businessName", e.target.value)} placeholder="Ex: Clínica Horizonte" /></label></div><Button className="mt-7 w-full sm:w-auto" disabled={!promptBaseSchema.safeParse(answers).success} onClick={() => setStep(1)}>Começar Prompt Base<ArrowRight size={16} /></Button></section>;
+  if (step === 0) return <section className="mx-auto max-w-3xl space-y-5"><VideoLesson title="Prompt Base: Como construir seu contexto estratégico" /><div className="card p-6 md:p-9"><p className="eyebrow">Base estratégica</p><h2 className="text-2xl font-bold text-white">Explique seu negócio para a Central</h2><p className="mt-4 leading-7 text-muted">Para começar, informe o nome do seu negócio. Seu nome e e-mail serão obtidos automaticamente da sua conta.</p><div className="mt-7"><label className="text-xs font-bold text-muted">Nome do seu negócio<input autoFocus className="field mt-2" value={answers.businessName} onChange={(e) => setField("businessName", e.target.value)} placeholder="Ex: Clínica Horizonte" /></label></div><Button className="mt-7 w-full sm:w-auto" disabled={!promptBaseSchema.safeParse(answers).success} onClick={() => setStep(1)}>Começar Prompt Base<ArrowRight size={16} /></Button></div></section>;
   if (step > promptQuestions.length) return <PromptBaseResult answers={answers} savedAt={savedAt} onEdit={() => setStep(1)} />;
   const question = promptQuestions[step - 1];
   return <section className="mx-auto max-w-3xl"><div className="mb-5"><div className="mb-3 flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-[.14em] text-gold">Pergunta {step} de {promptQuestions.length}</span><AutoSaveStatus saving={saving} date={savedAt} /></div><ProgressBar value={progress} /></div><div className="card min-h-[430px] p-6 md:p-9"><h2 className="text-xl font-bold leading-snug text-white">{question.title}</h2><p className="mt-2 text-sm text-muted">{question.subtitle}</p><div className="mt-8">{renderQuestion(question, answers, setField)}</div><div className="mt-9 flex items-center justify-between border-t border-white/8 pt-5"><Button variant="ghost" onClick={() => setStep(Math.max(0, step - 1))}><ArrowLeft size={16} />Anterior</Button>{step === promptQuestions.length ? <Button disabled={!isPromptQuestionAnswered(question, answers)} onClick={finish}><Check size={16} />Concluir Prompt Base</Button> : <Button disabled={!isPromptQuestionAnswered(question, answers)} onClick={() => setStep(step + 1)}>Continuar<ArrowRight size={16} /></Button>}</div></div></section>;
@@ -39,6 +39,7 @@ function PromptBaseResult({ answers, savedAt, onEdit }: { answers: PromptBaseAns
 
   return <section className="mx-auto max-w-3xl">
     <div className="mb-6 text-center"><p className="eyebrow">Etapa concluída</p><h2 className="text-2xl font-bold text-white">Sua base estratégica está pronta</h2><div className="mt-3 flex justify-center"><AutoSaveStatus date={savedAt} /></div></div>
+    <div className="mt-5"><VideoLesson title="Prompt Base: Como construir seu contexto estratégico" /></div>
     <div className="card overflow-hidden p-0">
       <div className="border-b border-white/8 bg-[radial-gradient(circle_at_85%_15%,rgba(34,211,238,.12),transparent_38%)] p-6 sm:p-8">
         <span className="inline-flex rounded-full border border-primary/25 bg-primary/8 px-3 py-1 text-[10px] font-bold uppercase tracking-[.14em] text-primary">{segment}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useApp } from "./app-provider";
 import { AutoSaveStatus, Button, PageHeader, VideoLesson } from "./ui";
@@ -41,20 +41,16 @@ export function LessonPage({ lessonKey }: { lessonKey: OutputKey }) {
       if (!response.ok || !payload.content) throw new Error(payload.error || "Não foi possível processar a etapa.");
       setResult(payload.content);
       setMode(payload.mode ?? null);
+      const now = new Date().toISOString();
+      update((current) => ({
+        ...current,
+        outputs: { ...current.outputs, [lessonKey]: { key: lessonKey, title: lesson.deliverable, content: payload.content!, completed: true, updatedAt: now } },
+      }));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível processar a etapa.");
     } finally {
       setLoading(false);
     }
-  }
-
-  function complete() {
-    if (!result.trim()) return;
-    const now = new Date().toISOString();
-    update((current) => ({
-      ...current,
-      outputs: { ...current.outputs, [lessonKey]: { key: lessonKey, title: lesson.deliverable, content: result.trim(), completed: true, updatedAt: now } },
-    }));
   }
 
   return <>
@@ -69,7 +65,7 @@ export function LessonPage({ lessonKey }: { lessonKey: OutputKey }) {
         <Button className="mt-6 w-full" disabled={!prerequisitesReady || loading} onClick={() => void generate()}>{loading ? <LoaderCircle className="animate-spin" size={17} /> : result ? <RefreshCw size={17} /> : <Sparkles size={17} />}{loading ? "Processando suas respostas..." : result ? "Gerar novamente" : "Processar esta etapa"}</Button>
       </section>
 
-      {result && <section className="card overflow-hidden p-0"><div className="flex items-center justify-between border-b border-white/8 px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-success">Resultado pronto</p><h2 className="mt-1 text-sm font-semibold text-white">{lesson.deliverable}</h2></div>{existing?.completed && <AutoSaveStatus date={existing.updatedAt} />}</div><div className="whitespace-pre-wrap p-5 text-sm leading-7 text-[#dbeafe]">{result}</div><div className="border-t border-white/8 p-4">{!existing?.completed || existing.content !== result ? <Button className="w-full" onClick={complete}><CheckCircle2 size={17} />Salvar e concluir etapa</Button> : <Link href={lesson.nextHref} className="button button-primary w-full">{lesson.nextLabel}<ArrowRight size={16} /></Link>}{mode === "demo" && <p className="mt-3 text-center text-[10px] text-muted">Resultado demonstrativo. Configure a API para processamento com IA.</p>}</div></section>}
+       {result && <section className="card overflow-hidden p-0"><div className="flex items-center justify-between border-b border-white/8 px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-success">Resultado salvo</p><h2 className="mt-1 text-sm font-semibold text-white">{lesson.deliverable}</h2></div><AutoSaveStatus date={existing?.updatedAt ?? new Date().toISOString()} /></div><div className="whitespace-pre-wrap p-5 text-sm leading-7 text-[#dbeafe]">{result}</div><div className="border-t border-white/8 p-4"><Link href={lesson.nextHref} className="button button-primary w-full">{lesson.nextLabel}<ArrowRight size={16} /></Link>{mode === "demo" && <p className="mt-3 text-center text-[10px] text-muted">Resultado demonstrativo. Configure a API para processamento com IA.</p>}</div></section>}
     </div>
   </>;
 }
