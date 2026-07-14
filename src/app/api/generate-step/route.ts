@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generationRequestSchema, getDevelopmentContext } from "@/lib/server/student-context";
-import { stagePrompts } from "@/lib/server/stage-prompts";
-import { loadDevelopmentStudentState } from "@/lib/server/student-repository";
+import { loadDevelopmentStudentState, recordDevelopmentGeneration } from "@/lib/server/student-repository";
+import { generateWithMuvAgent } from "@/lib/openai/agent";
 
 export async function POST(request: Request) {
   try {
@@ -10,6 +10,7 @@ export async function POST(request: Request) {
 
     const { lessonKey } = parsed.data;
     const storedState = process.env.SUPABASE_SERVICE_ROLE_KEY ? await loadDevelopmentStudentState() : null;
+    if (!storedState && !parsed.data.context) return NextResponse.json({ error: "Contexto do aluno não encontrado." }, { status: 409 });
     const context = storedState ? {
       promptBase: storedState.promptBase.answers,
       xray: {
@@ -20,32 +21,20 @@ export async function POST(request: Request) {
         answers: storedState.xray.answers,
       },
       previousOutputs: Object.fromEntries(Object.entries(storedState.outputs).map(([key, output]) => [key, output?.content ?? ""])),
-    } : getDevelopmentContext(parsed.data.context);
+    } : getDevelopmentContext(parsed.data.context!);
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) return NextResponse.json({ content: buildDevelopmentResult(lessonKey, context), mode: "demo" });
 
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-        instructions: stagePrompts[lessonKey],
-        input: JSON.stringify(context),
-        max_output_tokens: 3000,
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-
-    if (!response.ok) {
-      console.error("OpenAI generation failed", response.status, await response.text());
-      return NextResponse.json({ error: "Não foi possível processar esta etapa agora." }, { status: 502 });
+    const result = await generateWithMuvAgent(lessonKey, context);
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      await recordDevelopmentGeneration({
+        outputKey: lessonKey, model: result.model, responseId: result.responseId, status: "completed",
+        usedKnowledgeBase: result.usedKnowledgeBase, inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens, durationMs: result.durationMs,
+      });
     }
-
-    const result = await response.json() as { output_text?: string; output?: { content?: { type: string; text?: string }[] }[] };
-    const content = result.output_text || result.output?.flatMap((item) => item.content ?? []).find((item) => item.type === "output_text")?.text;
-    if (!content) return NextResponse.json({ error: "O processamento não retornou conteúdo." }, { status: 502 });
-    return NextResponse.json({ content, mode: "openai" });
+    return NextResponse.json({ content: result.content, mode: "openai", usedKnowledgeBase: result.usedKnowledgeBase });
   } catch (error) {
     console.error("Step generation error", error);
     return NextResponse.json({ error: "Erro inesperado ao processar a etapa." }, { status: 500 });

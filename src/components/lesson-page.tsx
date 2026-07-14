@@ -35,20 +35,7 @@ export function LessonPage({ lessonKey }: { lessonKey: OutputKey }) {
       const response = await fetch("/api/generate-step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lessonKey,
-          context: {
-            promptBase: data.promptBase.answers,
-            xray: {
-              score: data.xray.score,
-              classification: data.xray.classification,
-              leakLevel: data.xray.leakLevel,
-              bottleneck: data.xray.bottleneck,
-              answers: data.xray.answers,
-            },
-            previousOutputs: Object.fromEntries(Object.entries(data.outputs).map(([key, output]) => [key, output?.content ?? ""])),
-          },
-        }),
+        body: JSON.stringify({ lessonKey }),
       });
       const payload = await response.json() as { content?: string; mode?: "demo" | "openai"; error?: string };
       if (!response.ok || !payload.content) throw new Error(payload.error || "Não foi possível processar a etapa.");

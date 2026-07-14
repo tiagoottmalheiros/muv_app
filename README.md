@@ -32,13 +32,13 @@ npm run build
 
 ## Persistência atual
 
-O `AppProvider` em `src/components/app-provider.tsx` implementa um repositório local substituível. Formulários e editores usam debounce antes de atualizar o estado persistido. Para produção, substitua essa implementação por server actions ou rotas protegidas que gravem no Supabase.
+O `AppProvider` mantém estado reativo e usa `localStorage` somente como fallback. O estado principal é carregado e salvo com debounce por `/api/student/state`, que grava Prompt Base, Raio-X, progresso, entregáveis e Imersão no Supabase.
 
 ## Processamento das etapas
 
-Os prompts não são enviados ao navegador e não aparecem para o aluno. Eles ficam em `src/lib/server/stage-prompts.ts`. A interface chama `POST /api/generate-step`, que valida o contexto com Zod e usa a OpenAI Responses API quando `OPENAI_API_KEY` está configurada. Sem a chave, a rota devolve um resultado demonstrativo para permitir testar o fluxo.
+Os prompts não são enviados ao navegador e não aparecem para o aluno. Eles ficam em `src/lib/server/stage-prompts.ts`. A interface chama `POST /api/generate-step`, que carrega o contexto salvo no Supabase e usa a OpenAI Responses API com `file_search`. Sem a chave, a rota devolve um resultado demonstrativo.
 
-No modo atual, a interface envia o contexto local para essa rota. Na integração de produção, `src/lib/server/student-context.ts` deve ser substituído por uma leitura server-side do perfil autenticado no Supabase. O cliente deverá enviar somente a chave da etapa; Prompt Base, Raio-X e entregáveis anteriores nunca deverão ser aceitos do navegador como fonte confiável.
+Em desenvolvimento, existe uma identidade demonstrativa server-side. Em produção, ela deve ser substituída pela identidade Clerk autenticada. O Prompt Base, o Raio-X e os entregáveis anteriores são lidos do Supabase antes da geração.
 
 ## Próxima fase: Clerk
 
@@ -62,8 +62,10 @@ No modo atual, a interface envia o contexto local para essa rota. Na integraçã
 
 1. Preencha `OPENAI_API_KEY` somente no servidor.
 2. Opcionalmente altere `OPENAI_MODEL`; o padrão é `gpt-4.1-mini`.
-3. Nunca use uma variável `NEXT_PUBLIC_` para a chave da OpenAI.
-4. Após a geração, grave o resultado em `student_outputs` antes de marcar a etapa como concluída.
+3. Execute `npm run knowledge:upload` para criar o Vector Store e enviar os arquivos de `knowledge/`.
+4. O script grava `OPENAI_VECTOR_STORE_ID` no `.env.local`.
+5. Nunca use uma variável `NEXT_PUBLIC_` para chaves da OpenAI.
+6. As gerações são auditadas em `ai_generations`; o entregável aprovado é salvo em `student_outputs`.
 
 ## Liberar usuário e importar compradores
 

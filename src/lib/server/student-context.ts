@@ -12,13 +12,13 @@ export const generationRequestSchema = z.object({
       answers: z.array(z.object({ questionId: z.number(), category: z.string(), answer: z.string().max(1000), score: z.number(), optionIndex: z.number() })).max(12),
     }),
     previousOutputs: z.record(z.string(), z.string().max(30000)),
-  }),
+  }).optional(),
 });
 
 export type GenerationRequest = z.infer<typeof generationRequestSchema>;
 
 // In production, this contract will be populated server-side after validating
 // Clerk and reading the authenticated profile's records from Supabase.
-export function getDevelopmentContext(input: GenerationRequest["context"]) {
+export function getDevelopmentContext(input: NonNullable<GenerationRequest["context"]>) {
   return input;
 }

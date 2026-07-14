@@ -92,6 +92,34 @@ export async function saveDevelopmentStudentState(data: AppData) {
   }
 }
 
+export async function recordDevelopmentGeneration(input: {
+  outputKey: string;
+  model: string;
+  responseId?: string;
+  status: "completed" | "failed";
+  usedKnowledgeBase?: boolean;
+  inputTokens?: number;
+  outputTokens?: number;
+  durationMs?: number;
+  errorMessage?: string;
+}) {
+  const supabase = createSupabaseAdminClient();
+  const profile = await getOrCreateDevelopmentProfile();
+  const result = await supabase.from("ai_generations").insert({
+    profile_id: profile.id,
+    output_key: input.outputKey,
+    model: input.model,
+    response_id: input.responseId,
+    status: input.status,
+    used_knowledge_base: input.usedKnowledgeBase ?? false,
+    input_tokens: input.inputTokens,
+    output_tokens: input.outputTokens,
+    duration_ms: input.durationMs,
+    error_message: input.errorMessage,
+  });
+  if (result.error) throw result.error;
+}
+
 async function getOrCreateDevelopmentProfile() {
   if (process.env.NODE_ENV === "production") throw new Error("A identidade Clerk deve ser configurada antes de usar o Supabase em produção.");
   const supabase = createSupabaseAdminClient();
