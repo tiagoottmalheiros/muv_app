@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { generationRequestSchema, getDevelopmentContext } from "@/lib/server/student-context";
-import { loadDevelopmentStudentState, recordDevelopmentGeneration } from "@/lib/server/student-repository";
+import { assertAuthenticatedStudentAccess, loadDevelopmentStudentState, recordDevelopmentGeneration, StudentAccessError } from "@/lib/server/student-repository";
 import { generateWithMuvAgent } from "@/lib/openai/agent";
 
 export async function POST(request: Request) {
   try {
+    await assertAuthenticatedStudentAccess();
     const parsed = generationRequestSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Contexto inválido para processamento." }, { status: 400 });
 
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ content: result.content, mode: "openai", usedKnowledgeBase: result.usedKnowledgeBase });
   } catch (error) {
     console.error("Step generation error", error);
+    if (error instanceof StudentAccessError) return NextResponse.json({ error: error.message }, { status: 403 });
     return NextResponse.json({ error: "Erro inesperado ao processar a etapa." }, { status: 500 });
   }
 }

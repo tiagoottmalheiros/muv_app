@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, RefreshCcw, ShieldCheck, Trash2 } from "lucide-react";
+import { LogOut, ShieldCheck, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useApp } from "@/components/app-provider";
@@ -54,13 +54,8 @@ export default function ProfilePage() {
         <aside className="space-y-5">
           <section className="card">
             <ShieldCheck className="text-gold" />
-            <h2 className="mt-4 font-semibold text-white">Vincular e-mail da compra</h2>
-            <p className="text-muted mt-2 text-sm">Prepare uma solicitação para associar outro e-mail ao acesso.</p>
-            <input className="field mt-4" type="email" placeholder="email@dacompra.com" />
-            <Button variant="secondary" className="mt-3 w-full">
-              <RefreshCcw size={15} />
-              Solicitar vinculação
-            </Button>
+            <h2 className="mt-4 font-semibold text-white">Acesso verificado</h2>
+            <p className="text-muted mt-2 text-sm">Seu acesso está vinculado ao e-mail autenticado na conta Clerk e validado no servidor.</p>
           </section>
           <section className="card">
             <h2 className="font-semibold text-white">Apagar dados locais</h2>

@@ -4,13 +4,25 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { EMPTY_APP_DATA, type AppData, type OutputKey } from "@/lib/types";
 
+export class StudentAccessError extends Error {}
+
+export async function hasAuthenticatedStudentAccess() {
+  const profile = await getOrCreateAuthenticatedProfile();
+  const entitlement = await resolveStudentEntitlement(profile);
+  return entitlement?.status === "active" && (!entitlement.expires_at || new Date(entitlement.expires_at) > new Date());
+}
+
+export async function assertAuthenticatedStudentAccess() {
+  if (!await hasAuthenticatedStudentAccess()) throw new StudentAccessError("Não encontramos um acesso ativo para o e-mail desta conta.");
+}
+
 export async function loadDevelopmentStudentState(): Promise<AppData | null> {
   const supabase = createSupabaseAdminClient();
   const profile = await getOrCreateAuthenticatedProfile();
 
-  const [promptBase, xray, progress, outputs, immersion, entitlement] = await Promise.all([supabase.from("prompt_base_submissions").select("*").eq("profile_id", profile.id).maybeSingle(), supabase.from("funnel_xray_submissions").select("*").eq("profile_id", profile.id).maybeSingle(), supabase.from("lesson_progress").select("*").eq("profile_id", profile.id), supabase.from("student_outputs").select("*").eq("profile_id", profile.id), supabase.from("immersion_registrations").select("*").eq("profile_id", profile.id).maybeSingle(), supabase.from("entitlements").select("status").eq("profile_id", profile.id).eq("product_code", "muv_starter").maybeSingle()]);
+  const [promptBase, xray, progress, outputs, immersion, entitlement] = await Promise.all([supabase.from("prompt_base_submissions").select("*").eq("profile_id", profile.id).maybeSingle(), supabase.from("funnel_xray_submissions").select("*").eq("profile_id", profile.id).maybeSingle(), supabase.from("lesson_progress").select("*").eq("profile_id", profile.id), supabase.from("student_outputs").select("*").eq("profile_id", profile.id), supabase.from("immersion_registrations").select("*").eq("profile_id", profile.id).maybeSingle(), resolveStudentEntitlement(profile)]);
 
-  const error = [promptBase.error, xray.error, progress.error, outputs.error, immersion.error, entitlement.error].find(Boolean);
+  const error = [promptBase.error, xray.error, progress.error, outputs.error, immersion.error].find(Boolean);
   if (error) throw error;
   const hasData = Boolean(promptBase.data || xray.data || outputs.data?.length || progress.data?.length);
   if (!hasData) return null;
@@ -32,7 +44,7 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
   return {
     ...EMPTY_APP_DATA,
     authenticated: true,
-    entitlement: entitlement.data?.status === "active" ? "active" : entitlement.data?.status === "blocked" ? "blocked" : "pending",
+    entitlement: entitlement?.status === "active" && (!entitlement.expires_at || new Date(entitlement.expires_at) > new Date()) ? "active" : entitlement?.status === "blocked" ? "blocked" : "pending",
     user: {
       name: profile.name ?? "Aluno MUV",
       email: profile.primary_email ?? "aluno@muv.com.br",
@@ -124,9 +136,6 @@ export async function saveDevelopmentStudentState(data: AppData) {
       { onConflict: "profile_id" },
     ),
   ];
-  if (process.env.NODE_ENV !== "production") {
-    operations.push(supabase.from("entitlements").upsert({ profile_id: profile.id, product_code: "muv_starter", source: "development", purchase_email: data.user.purchaseEmail, status: "active", updated_at: now }, { onConflict: "profile_id,product_code" }));
-  }
   const results = await Promise.all(operations);
   const error = results.find((result) => result.error)?.error;
   if (error) throw error;
@@ -208,11 +217,26 @@ async function getOrCreateAuthenticatedProfile() {
     .select("*")
     .single();
   if (result.error) throw result.error;
-  if (process.env.NODE_ENV !== "production") {
-    const entitlement = await supabase.from("entitlements").upsert({ profile_id: result.data.id, product_code: "muv_starter", source: "development", purchase_email: email, status: "active", updated_at: new Date().toISOString() }, { onConflict: "profile_id,product_code" });
-    if (entitlement.error) throw entitlement.error;
-  }
   return result.data;
+}
+
+async function resolveStudentEntitlement(profile: { id: string; primary_email?: string | null }) {
+  const supabase = createSupabaseAdminClient();
+  const direct = await supabase.from("entitlements").select("*").eq("profile_id", profile.id).eq("product_code", "muv_starter").maybeSingle();
+  if (direct.error) throw direct.error;
+  if (direct.data) return direct.data;
+
+  const email = profile.primary_email?.trim().toLowerCase();
+  if (!email) return null;
+  const matching = await supabase.from("entitlements").select("*").eq("product_code", "muv_starter").ilike("purchase_email", email).eq("status", "active").limit(1).maybeSingle();
+  if (matching.error) throw matching.error;
+  if (!matching.data) return null;
+
+  const linked = await supabase.from("entitlements").update({ profile_id: profile.id, updated_at: new Date().toISOString() }).eq("id", matching.data.id).select("*").single();
+  if (linked.error) throw linked.error;
+  const profileUpdate = await supabase.from("profiles").update({ purchase_email: matching.data.purchase_email, updated_at: new Date().toISOString() }).eq("id", profile.id);
+  if (profileUpdate.error) throw profileUpdate.error;
+  return linked.data;
 }
 
 function buildProgressRows(profileId: string, data: AppData, now: string) {

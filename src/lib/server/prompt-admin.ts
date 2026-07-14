@@ -15,7 +15,7 @@ export async function isPromptAdmin() {
   const { userId } = await auth();
   if (!userId) return false;
   const adminIds = (process.env.ADMIN_CLERK_USER_IDS || "").split(",").map((id) => id.trim()).filter(Boolean);
-  return adminIds.length ? adminIds.includes(userId) : process.env.NODE_ENV !== "production";
+  return adminIds.includes(userId);
 }
 
 export async function assertPromptAdmin() {
