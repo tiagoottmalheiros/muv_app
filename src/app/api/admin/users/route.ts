@@ -1,4 +1,5 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { assertPromptAdmin, getBootstrapAdminIds, PromptAdminError } from "@/lib/server/prompt-admin";
@@ -19,7 +20,7 @@ export async function GET() {
     return NextResponse.json({
       users: users.data.map((user) => ({
         id: user.id,
-        name: user.fullName || user.username || "Usuário sem nome",
+        name: user.fullName || "Usuário sem nome",
         email: user.primaryEmailAddress?.emailAddress || "Sem e-mail",
         imageUrl: user.imageUrl,
         isAdmin: bootstrapIds.includes(user.id) || user.privateMetadata.muvRole === "admin",
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
     const user = await clerk.users.createUser({
       emailAddress: [parsed.data.email],
       password: parsed.data.password,
+      username: `aluno_${randomBytes(16).toString("hex")}`,
       firstName,
       lastName: lastNameParts.join(" ") || undefined,
       privateMetadata: { muvRole: "student" },
@@ -114,7 +116,13 @@ function handleError(context: string, error: unknown) {
 
 function clerkErrorMessage(error: unknown) {
   if (typeof error === "object" && error && "errors" in error && Array.isArray(error.errors)) {
-    const first = error.errors[0] as { longMessage?: string; message?: string } | undefined;
+    const first = error.errors[0] as { code?: string; longMessage?: string; message?: string; meta?: { paramName?: string } } | undefined;
+    const code = first?.code?.toLowerCase() || "";
+    const paramName = first?.meta?.paramName?.toLowerCase() || "";
+    const details = `${first?.message || ""} ${first?.longMessage || ""}`.toLowerCase();
+    if (paramName.includes("username") || code.startsWith("form_username") || details.includes("username")) return "Não foi possível gerar um identificador interno válido. Tente novamente.";
+    if (code === "form_identifier_exists" || (details.includes("email") && (details.includes("exist") || details.includes("already") || details.includes("taken")))) return "Este e-mail já está cadastrado.";
+    if (paramName.includes("password") || code.startsWith("form_password") || details.includes("password")) return "A senha informada não atende aos requisitos de segurança.";
     if (first?.longMessage || first?.message) return first.longMessage || first.message;
   }
   return error instanceof Error && error.message ? error.message : "Não foi possível criar o aluno.";
