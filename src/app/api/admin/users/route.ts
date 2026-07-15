@@ -1,5 +1,4 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { assertPromptAdmin, getBootstrapAdminIds, PromptAdminError } from "@/lib/server/prompt-admin";
@@ -64,15 +63,11 @@ export async function POST(request: Request) {
     const user = await clerk.users.createUser({
       emailAddress: [parsed.data.email],
       password: parsed.data.password,
-      username: `aluno_${randomBytes(16).toString("hex")}`,
       firstName,
       lastName: lastNameParts.join(" ") || undefined,
       privateMetadata: { muvRole: "student" },
     });
     createdUserId = user.id;
-    const emailAddress = user.emailAddresses.find((item) => item.emailAddress.toLowerCase() === parsed.data.email);
-    if (!emailAddress) throw new Error("O Clerk não criou o e-mail do aluno.");
-    await clerk.emailAddresses.updateEmailAddress(emailAddress.id, { verified: true, primary: true });
 
     const supabase = createSupabaseAdminClient();
     const profile = await supabase.from("profiles").upsert({
