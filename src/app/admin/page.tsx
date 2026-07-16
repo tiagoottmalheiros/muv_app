@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Crown, KeyRound, LoaderCircle, Mail, RotateCcw, Search, Shield, ShieldMinus, Sparkles, UserPlus } from "lucide-react";
+import { Crown, Download, KeyRound, LoaderCircle, Mail, RotateCcw, Search, Shield, ShieldMinus, Sparkles, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { useApp } from "@/components/app-provider";
-import { Brand, Button } from "@/components/ui";
+import { Brand, Button, ProgressBar } from "@/components/ui";
 
 type AdminUser = {
   id: string;
@@ -16,6 +16,8 @@ type AdminUser = {
   isAdmin: boolean;
   isBootstrap: boolean;
   isCurrent: boolean;
+  progressPercentage: number;
+  promptBaseAvailable: boolean;
 };
 
 export default function AdminPage() {
@@ -25,6 +27,7 @@ export default function AdminPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState<string | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
   const [creating, setCreating] = useState(false);
   const [student, setStudent] = useState({ name: "", email: "", password: "" });
@@ -100,6 +103,28 @@ export default function AdminPage() {
     }
   }
 
+  async function exportPromptBase(user: AdminUser) {
+    setExportingId(user.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/prompt-base`, { cache: "no-store" });
+      if (!response.ok) {
+        const payload = await response.json() as { error?: string };
+        throw new Error(payload.error || "Não foi possível exportar o Prompt Base.");
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `prompt-base-${user.id}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (caught) {
+      setError(messageFrom(caught));
+    } finally {
+      setExportingId(null);
+    }
+  }
+
   async function restartJourney() {
     if (!window.confirm("Reiniciar sua jornada de teste? Suas respostas, resultados e progresso atuais serão apagados.")) return;
     setResetting(true);
@@ -130,7 +155,7 @@ export default function AdminPage() {
       <section className="card mt-8"><div className="relative max-w-md"><Search className="absolute left-3 top-3.5 text-muted" size={16} /><input className="field pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar usuário por nome ou e-mail" /></div></section>
       <section className="mt-4 overflow-hidden rounded-2xl border border-white/8 bg-[#050816]">
         <div className="hidden grid-cols-[1fr_180px_230px] border-b border-white/8 bg-white/[.03] px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted md:grid"><span>Usuário</span><span>Função</span><span>Ação</span></div>
-        {loading ? <div className="grid min-h-52 place-items-center"><LoaderCircle className="animate-spin text-primary" size={26} /></div> : visibleUsers.length === 0 ? <div className="p-10 text-center text-sm text-muted">Nenhum usuário encontrado.</div> : visibleUsers.map((user) => <div key={user.id} className="grid gap-4 border-b border-white/8 p-5 last:border-0 md:grid-cols-[1fr_180px_230px] md:items-center"><div className="flex min-w-0 items-center gap-3"><Image className="size-10 rounded-full border border-white/10" src={user.imageUrl} alt="" width={40} height={40} unoptimized /><div className="min-w-0"><strong className="block truncate text-sm text-white">{user.name}{user.isCurrent ? " (você)" : ""}</strong><span className="block truncate text-xs text-muted">{user.email}</span></div></div><div><span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${user.isAdmin ? "bg-primary/10 text-primary" : "bg-white/5 text-muted"}`}>{user.isAdmin ? <Crown size={13} /> : <Shield size={13} />}{user.isBootstrap ? "Admin inicial" : user.isAdmin ? "Administrador" : "Aluno"}</span></div><Button variant={user.isAdmin ? "ghost" : "secondary"} disabled={workingId === user.id || user.isBootstrap || user.isCurrent && user.isAdmin} onClick={() => void changeAdmin(user)}>{workingId === user.id ? <LoaderCircle className="animate-spin" size={15} /> : user.isAdmin ? <ShieldMinus size={15} /> : <UserPlus size={15} />}{user.isAdmin ? "Remover admin" : "Tornar admin"}</Button></div>)}
+        {loading ? <div className="grid min-h-52 place-items-center"><LoaderCircle className="animate-spin text-primary" size={26} /></div> : visibleUsers.length === 0 ? <div className="p-10 text-center text-sm text-muted">Nenhum usuário encontrado.</div> : visibleUsers.map((user) => <div key={user.id} className="grid gap-4 border-b border-white/8 p-5 last:border-0 md:grid-cols-[1fr_180px_230px] md:items-center"><div className="flex min-w-0 items-start gap-3"><Image className="size-10 rounded-full border border-white/10" src={user.imageUrl} alt="" width={40} height={40} unoptimized /><div className="min-w-0 flex-1"><strong className="block truncate text-sm text-white">{user.name}{user.isCurrent ? " (você)" : ""}</strong><span className="block truncate text-xs text-muted">{user.email}</span><div className="mt-3 max-w-xs"><ProgressBar value={user.progressPercentage} label="Progresso da jornada" /></div></div></div><div><span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${user.isAdmin ? "bg-primary/10 text-primary" : "bg-white/5 text-muted"}`}>{user.isAdmin ? <Crown size={13} /> : <Shield size={13} />}{user.isBootstrap ? "Admin inicial" : user.isAdmin ? "Administrador" : "Aluno"}</span></div><div className="flex flex-col gap-2"><Button variant={user.isAdmin ? "ghost" : "secondary"} disabled={workingId === user.id || user.isBootstrap || user.isCurrent && user.isAdmin} onClick={() => void changeAdmin(user)}>{workingId === user.id ? <LoaderCircle className="animate-spin" size={15} /> : user.isAdmin ? <ShieldMinus size={15} /> : <UserPlus size={15} />}{user.isAdmin ? "Remover admin" : "Tornar admin"}</Button><Button variant="secondary" disabled={!user.promptBaseAvailable || exportingId === user.id} title={user.promptBaseAvailable ? "Exportar respostas do Prompt Base" : "Prompt Base ainda não concluído"} onClick={() => void exportPromptBase(user)}>{exportingId === user.id ? <LoaderCircle className="animate-spin" size={15} /> : <Download size={15} />}{user.promptBaseAvailable ? "Exportar Prompt Base" : "Prompt Base pendente"}</Button></div></div>)}
       </section>
       <div className="mt-6 flex items-center gap-2 text-xs text-muted"><Shield size={14} />Somente administradores podem alterar estas funções.</div>
     </div>

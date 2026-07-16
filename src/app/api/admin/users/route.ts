@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { journey } from "@/lib/journey";
 import { assertPromptAdmin, getBootstrapAdminIds, PromptAdminError } from "@/lib/server/prompt-admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -15,17 +16,49 @@ export async function GET() {
   try {
     await assertPromptAdmin();
     const [{ userId }, users] = await Promise.all([auth(), (await clerkClient()).users.getUserList({ limit: 100, orderBy: "-created_at" })]);
+    const supabase = createSupabaseAdminClient();
+    const clerkUserIds = users.data.map((user) => user.id);
+    const profiles = clerkUserIds.length
+      ? await supabase.from("profiles").select("id,clerk_user_id").in("clerk_user_id", clerkUserIds)
+      : { data: [], error: null };
+    if (profiles.error) throw profiles.error;
+
+    const profileIds = profiles.data.map((profile) => profile.id);
+    const [progress, promptBases] = profileIds.length
+      ? await Promise.all([
+          supabase.from("lesson_progress").select("profile_id,lesson_key,status").in("profile_id", profileIds),
+          supabase.from("prompt_base_submissions").select("profile_id,status").in("profile_id", profileIds),
+        ])
+      : [{ data: [], error: null }, { data: [], error: null }];
+    if (progress.error) throw progress.error;
+    if (promptBases.error) throw promptBases.error;
+
+    const profileByClerkId = new Map(profiles.data.map((profile) => [profile.clerk_user_id, profile.id]));
+    const completedByProfile = new Map<string, Set<string>>();
+    for (const row of progress.data) {
+      if (row.status !== "completed") continue;
+      const completed = completedByProfile.get(row.profile_id) || new Set<string>();
+      completed.add(row.lesson_key);
+      completedByProfile.set(row.profile_id, completed);
+    }
+    const promptBaseProfiles = new Set(promptBases.data.filter((row) => row.status === "completed").map((row) => row.profile_id));
     const bootstrapIds = getBootstrapAdminIds();
     return NextResponse.json({
-      users: users.data.map((user) => ({
-        id: user.id,
-        name: user.fullName || "Usuário sem nome",
-        email: user.primaryEmailAddress?.emailAddress || "Sem e-mail",
-        imageUrl: user.imageUrl,
-        isAdmin: bootstrapIds.includes(user.id) || user.privateMetadata.muvRole === "admin",
-        isBootstrap: bootstrapIds.includes(user.id),
-        isCurrent: user.id === userId,
-      })),
+      users: users.data.map((user) => {
+        const profileId = profileByClerkId.get(user.id);
+        const completed = profileId ? completedByProfile.get(profileId) : undefined;
+        return {
+          id: user.id,
+          name: user.fullName || "Usuário sem nome",
+          email: user.primaryEmailAddress?.emailAddress || "Sem e-mail",
+          imageUrl: user.imageUrl,
+          isAdmin: bootstrapIds.includes(user.id) || user.privateMetadata.muvRole === "admin",
+          isBootstrap: bootstrapIds.includes(user.id),
+          isCurrent: user.id === userId,
+          progressPercentage: journey.reduce((total, step) => total + (completed?.has(step.key) ? step.weight : 0), 0),
+          promptBaseAvailable: Boolean(profileId && promptBaseProfiles.has(profileId)),
+        };
+      }),
     });
   } catch (error) {
     return handleError("Failed to list admin users", error);
