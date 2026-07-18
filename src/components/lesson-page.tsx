@@ -55,19 +55,24 @@ export function LessonPage({ lessonKey }: { lessonKey: OutputKey }) {
     }
   }
 
+  function regenerate() {
+    if (!window.confirm("Refazer esta tarefa substituirá o resultado atual. Deseja continuar?")) return;
+    void generate();
+  }
+
   return <>
     <PageHeader eyebrow={lesson.eyebrow} title={lesson.title} description={lesson.objective} />
     <div className="space-y-5">
-      <VideoLesson title={lesson.title} />
+      <div className="mx-auto w-full max-w-6xl"><VideoLesson title={lesson.title} /></div>
 
-      <section className="card sm:p-7">
+      {!result && <section className="card mx-auto w-full max-w-5xl sm:p-7">
         <div className="text-center"><div className="mx-auto grid size-12 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary"><Sparkles size={21} /></div><p className="eyebrow mt-5">Aplicação automática</p><h2 className="text-xl font-semibold text-white">Gerar {lesson.deliverable}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted">A Central cruza suas respostas e os resultados anteriores para construir este ativo de forma personalizada.</p></div>
         {!prerequisitesReady && <p className="mt-5 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-center text-xs text-amber-200">Conclua as etapas anteriores antes de processar este resultado.</p>}
         {error && <p className="mt-5 rounded-xl border border-red-400/20 bg-red-400/5 p-4 text-center text-xs text-red-300">{error}</p>}
-        <Button className="mt-6 w-full" disabled={!prerequisitesReady || loading} onClick={() => void generate()}>{loading ? <LoaderCircle className="animate-spin" size={17} /> : result ? <RefreshCw size={17} /> : <Sparkles size={17} />}{loading ? "Processando suas respostas..." : result ? "Gerar novamente" : generateLabel}</Button>
-      </section>
+        <Button className="mt-6 w-full" disabled={!prerequisitesReady || loading} onClick={() => void generate()}>{loading ? <LoaderCircle className="animate-spin" size={17} /> : <Sparkles size={17} />}{loading ? "Processando suas respostas..." : generateLabel}</Button>
+      </section>}
 
-       {result && <section className="card overflow-hidden p-0"><div className="flex items-center justify-between border-b border-white/8 px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-success">Resultado salvo</p><h2 className="mt-1 text-sm font-semibold text-white">{lesson.deliverable}</h2></div><AutoSaveStatus date={existing?.updatedAt ?? new Date().toISOString()} /></div><div className="p-4 sm:p-5"><RichResult content={result} /></div><div className="border-t border-white/8 p-4"><Link href={lesson.nextHref} className="button button-primary w-full">{lesson.nextLabel}<ArrowRight size={16} /></Link>{mode === "demo" && <p className="mt-3 text-center text-[10px] text-muted">Resultado demonstrativo. Configure a API para processamento com IA.</p>}</div></section>}
+       {result && <div className="mx-auto w-full max-w-[1440px]"><section className="card overflow-hidden p-0"><div className="flex items-center justify-between border-b border-white/8 px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-success">Resultado salvo</p><h2 className="mt-1 text-sm font-semibold text-white">{lesson.deliverable}</h2></div><AutoSaveStatus date={existing?.updatedAt ?? new Date().toISOString()} /></div><div className="p-4 sm:p-5"><RichResult content={result} /></div><div className="border-t border-white/8 p-4"><Link href={lesson.nextHref} className="button button-primary w-full">{lesson.nextLabel}<ArrowRight size={16} /></Link>{mode === "demo" && <p className="mt-3 text-center text-[10px] text-muted">Resultado demonstrativo. Configure a API para processamento com IA.</p>}</div></section>{error && <p className="mt-5 rounded-xl border border-red-400/20 bg-red-400/5 p-4 text-center text-xs text-red-300">{error}</p>}<div className="flex flex-col items-center gap-2 pt-6 text-center"><button className="inline-flex items-center gap-2 text-xs text-muted underline decoration-white/15 underline-offset-4 transition hover:text-white" disabled={loading} onClick={regenerate}><RefreshCw size={13} />Refazer esta tarefa</button><p className="text-[10px] text-muted/70">Esta ação substituirá o resultado salvo.</p></div></div>}
     </div>
     {loading && <div aria-labelledby="generation-title" aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-[#020617]/85 p-5 backdrop-blur-sm" role="dialog"><div className="card w-full max-w-md border-primary/25 p-7 text-center shadow-[0_24px_80px_rgba(0,0,0,.55)] sm:p-9"><div className="mx-auto grid size-16 place-items-center rounded-2xl border border-primary/30 bg-primary/10 text-primary"><LoaderCircle className="animate-spin" size={30} /></div><p className="eyebrow mt-6">Geração automática</p><h2 className="mt-2 text-xl font-semibold text-white" id="generation-title">Aguarde enquanto geramos sua tarefa</h2><p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted">Estamos cruzando sua Base Estratégica, o Raio-X e os resultados anteriores. Isso pode levar alguns instantes.</p><p className="mt-5 text-xs font-semibold text-[#dbeafe]">Não feche esta página durante o processamento.</p></div></div>}
   </>;

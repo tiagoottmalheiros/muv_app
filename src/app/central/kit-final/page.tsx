@@ -38,7 +38,7 @@ export default function KitPage() {
   }
 
   return <>
-    <div className="space-y-5 no-print">
+    <div className="mx-auto max-w-6xl space-y-5 no-print">
       <PageHeader eyebrow="Etapa final" title="Do filtro ao sistema comercial" description="Assista à aula final, garanta sua vaga na Imersão e acesse todos os resultados construídos durante a aplicação." />
       <VideoLesson title="Do primeiro filtro ao sistema comercial" videoUrl={videoUrl} />
       <section className="card overflow-hidden border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,.09),transparent_42%)] p-6 sm:p-8">
@@ -50,7 +50,7 @@ export default function KitPage() {
       </section>
     </div>
 
-    <section className="mt-12 border-t border-white/8 pt-10">
+    <section className="mx-auto mt-12 w-full max-w-[1440px] border-t border-white/8 pt-10">
       <PageHeader eyebrow="Seus resultados" title="Kit Filtro Anti-Curiosos" description="Copie, baixe ou revise todos os ativos construídos durante o MUV Starter." />
       {complete && <div className="mb-7 flex items-start gap-4 rounded-2xl border border-gold/25 bg-gold/[.06] p-5"><PartyPopper className="mt-0.5 shrink-0 text-gold" /><div><strong className="text-white">Seu primeiro Filtro Anti-Curiosos está pronto.</strong><p className="mt-1 text-sm text-muted">Use estes resultados para identificar dor, urgência e perfil antes do próximo passo comercial.</p></div></div>}
       <div className="mb-6 grid gap-3 no-print sm:grid-cols-2"><CopyButton text={all} label="Copiar Kit completo" /><DownloadButton text={all} filename="kit-filtro-anti-curiosos.txt" /><Button className="sm:col-span-2" variant="secondary" onClick={() => window.print()}>Imprimir / salvar PDF</Button></div>

@@ -37,7 +37,7 @@ function PromptBaseResult({ answers, savedAt, onEdit }: { answers: PromptBaseAns
     { label: "Seu diferencial", value: answers.differentiator },
   ];
 
-  return <section className="mx-auto max-w-3xl">
+  return <section className="mx-auto max-w-3xl lg:max-w-6xl xl:max-w-7xl">
     <VideoLesson title="Base Estratégica: prepare o contexto do seu negócio" />
     <div className="my-6 text-center"><p className="eyebrow">Etapa concluída</p><h2 className="text-2xl font-bold text-white">Sua base estratégica está pronta</h2><div className="mt-3 flex justify-center"><AutoSaveStatus date={savedAt} /></div></div>
     <div className="card overflow-hidden p-0">
