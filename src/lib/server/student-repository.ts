@@ -9,6 +9,7 @@ import { EMPTY_APP_DATA, type AppData, type OutputKey } from "@/lib/types";
 import { generateXrayText } from "@/lib/xray";
 
 export class StudentAccessError extends Error {}
+export class StudentStateResetError extends Error {}
 
 export async function hasAuthenticatedStudentAccess() {
   const profile = await getOrCreateAuthenticatedProfile();
@@ -28,9 +29,6 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
 
   const error = [promptBase.error, xray.error, progress.error, outputs.error, immersion.error].find(Boolean);
   if (error) throw error;
-  const hasData = Boolean(promptBase.data || xray.data || outputs.data?.length || progress.data?.length);
-  if (!hasData) return null;
-
   const outputMap = Object.fromEntries(
     (outputs.data ?? []).map((output) => {
       const legacyPlan = output.output_key === "step_1_diagnosis" && Number(output.version ?? 1) < 2;
@@ -88,12 +86,14 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
     },
     lastRoute: profile.last_route ?? "/central/comece-aqui",
     lastActivityAt: profile.last_access_at ?? profile.updated_at,
+    journeyResetAt: profile.journey_reset_at ?? EMPTY_APP_DATA.journeyResetAt,
   } as AppData;
 }
 
 export async function saveDevelopmentStudentState(data: AppData) {
   const supabase = createSupabaseAdminClient();
   const profile = await getOrCreateAuthenticatedProfile();
+  if (new Date(data.journeyResetAt || 0).getTime() < new Date(profile.journey_reset_at || 0).getTime()) throw new StudentStateResetError("A jornada foi zerada por um administrador.");
   if (data.promptBase.completed && !isValidExactTicket(data.promptBase.answers.ticket)) throw new Error("O ticket médio deve ser um valor exato maior que zero.");
   const now = new Date().toISOString();
 
@@ -105,7 +105,8 @@ export async function saveDevelopmentStudentState(data: AppData) {
         updated_at: now,
         last_route: data.lastRoute,
       })
-      .eq("id", profile.id),
+      .eq("id", profile.id)
+      .eq("journey_reset_at", data.journeyResetAt),
     supabase.from("prompt_base_submissions").upsert(
       {
         profile_id: profile.id,
@@ -113,6 +114,7 @@ export async function saveDevelopmentStudentState(data: AppData) {
         generated_text: data.promptBase.generatedText,
         status: data.promptBase.completed ? "completed" : "draft",
         completed_at: data.promptBase.completed ? now : null,
+        journey_reset_at: data.journeyResetAt,
         updated_at: now,
       },
       { onConflict: "profile_id" },
@@ -128,6 +130,7 @@ export async function saveDevelopmentStudentState(data: AppData) {
         generated_text: data.xray.generatedText,
         status: data.xray.completed ? "completed" : "draft",
         completed_at: data.xray.completed ? now : null,
+        journey_reset_at: data.journeyResetAt,
         updated_at: now,
       },
       { onConflict: "profile_id" },
@@ -139,6 +142,7 @@ export async function saveDevelopmentStudentState(data: AppData) {
         viewed_at: data.immersion.viewed ? now : null,
         clicked_at: data.immersion.clicked ? now : null,
         confirmed_at: data.immersion.confirmedAt ?? null,
+        journey_reset_at: data.journeyResetAt,
         updated_at: now,
       },
       { onConflict: "profile_id" },
@@ -146,11 +150,11 @@ export async function saveDevelopmentStudentState(data: AppData) {
   ];
   const results = await Promise.all(operations);
   const error = results.find((result) => result.error)?.error;
-  if (error) throw error;
+  if (error) throwStudentRepositoryError(error);
 
   const progressRows = buildProgressRows(profile.id, data, now);
   const progressResult = await supabase.from("lesson_progress").upsert(progressRows, { onConflict: "profile_id,lesson_key" });
-  if (progressResult.error) throw progressResult.error;
+  if (progressResult.error) throwStudentRepositoryError(progressResult.error);
 
   const outputRows = Object.values(data.outputs)
     .filter(Boolean)
@@ -161,11 +165,12 @@ export async function saveDevelopmentStudentState(data: AppData) {
       content: output!.content,
       status: output!.completed ? "completed" : "draft",
       version: output!.key === "step_1_diagnosis" ? 2 : 1,
+      journey_reset_at: data.journeyResetAt,
       updated_at: now,
     }));
   if (outputRows.length) {
     const outputResult = await supabase.from("student_outputs").upsert(outputRows, { onConflict: "profile_id,output_key" });
-    if (outputResult.error) throw outputResult.error;
+    if (outputResult.error) throwStudentRepositoryError(outputResult.error);
   }
 }
 
@@ -183,25 +188,20 @@ export async function recordDevelopmentGeneration(input: { outputKey: string; mo
     output_tokens: input.outputTokens,
     duration_ms: input.durationMs,
     error_message: input.errorMessage,
+    journey_reset_at: profile.journey_reset_at ?? EMPTY_APP_DATA.journeyResetAt,
   });
   if (result.error) throw result.error;
 }
 
 export async function resetAuthenticatedStudentJourney() {
-  const supabase = createSupabaseAdminClient();
   const profile = await getOrCreateAuthenticatedProfile();
-  const results = await Promise.all([
-    supabase.from("ai_generations").delete().eq("profile_id", profile.id),
-    supabase.from("student_outputs").delete().eq("profile_id", profile.id),
-    supabase.from("lesson_progress").delete().eq("profile_id", profile.id),
-    supabase.from("funnel_xray_submissions").delete().eq("profile_id", profile.id),
-    supabase.from("prompt_base_submissions").delete().eq("profile_id", profile.id),
-    supabase.from("immersion_registrations").delete().eq("profile_id", profile.id),
-    supabase.from("activity_events").delete().eq("profile_id", profile.id),
-    supabase.from("profiles").update({ last_route: "/central/comece-aqui", last_access_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", profile.id),
-  ]);
-  const error = results.find((result) => result.error)?.error;
-  if (error) throw error;
+  await resetStudentJourneyByProfileId(profile.id);
+}
+
+export async function resetStudentJourneyByProfileId(profileId: string) {
+  const supabase = createSupabaseAdminClient();
+  const result = await supabase.rpc("reset_student_journey", { target_profile_id: profileId });
+  if (result.error) throw result.error;
 }
 
 async function getOrCreateAuthenticatedProfile() {
@@ -264,6 +264,12 @@ function buildProgressRows(profileId: string, data: AppData, now: string) {
     status: completed ? "completed" : data.startedSteps.includes(lessonKey) ? "in_progress" : "not_started",
     percent: completed ? 100 : data.startedSteps.includes(lessonKey) ? 25 : 0,
     completed_at: completed ? now : null,
+    journey_reset_at: data.journeyResetAt,
     updated_at: now,
   }));
+}
+
+function throwStudentRepositoryError(error: { code?: string; message?: string }): never {
+  if (error.code === "40001" || error.message?.includes("stale student journey state")) throw new StudentStateResetError("A jornada foi zerada por um administrador.");
+  throw error;
 }

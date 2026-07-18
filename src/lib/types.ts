@@ -72,6 +72,7 @@ export type AppData = {
   immersion: { viewed: boolean; clicked: boolean; confirmed: boolean; confirmedAt?: string };
   lastRoute: string;
   lastActivityAt: string;
+  journeyResetAt: string;
 };
 
 export const EMPTY_PROMPT_BASE: PromptBaseAnswers = {
@@ -119,4 +120,5 @@ export const EMPTY_APP_DATA: AppData = {
   immersion: { viewed: false, clicked: false, confirmed: false },
   lastRoute: "/central/comece-aqui",
   lastActivityAt: new Date(0).toISOString(),
+  journeyResetAt: new Date(0).toISOString(),
 };

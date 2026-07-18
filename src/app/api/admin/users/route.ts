@@ -16,31 +16,38 @@ const createSchema = z.object({
 export async function GET() {
   try {
     await assertPromptAdmin();
-    const [{ userId }, users] = await Promise.all([auth(), (await clerkClient()).users.getUserList({ limit: 100, orderBy: "-created_at" })]);
+    const [{ userId }, clerk] = await Promise.all([auth(), clerkClient()]);
+    const firstPage = await clerk.users.getUserList({ limit: 500, offset: 0, orderBy: "-created_at" });
+    const users = [...firstPage.data];
+    for (let offset = users.length; offset < firstPage.totalCount; offset = users.length) {
+      const page = await clerk.users.getUserList({ limit: 500, offset, orderBy: "-created_at" });
+      if (!page.data.length) break;
+      users.push(...page.data);
+    }
     const supabase = createSupabaseAdminClient();
-    const clerkUserIds = users.data.map((user) => user.id);
-    const profiles = clerkUserIds.length
-      ? await supabase.from("profiles").select("id,clerk_user_id").in("clerk_user_id", clerkUserIds)
-      : { data: [], error: null };
-    if (profiles.error) throw profiles.error;
+    const clerkUserIds = users.map((user) => user.id);
+    const profilePages = await Promise.all(chunk(clerkUserIds).map((ids) => supabase.from("profiles").select("id,clerk_user_id").in("clerk_user_id", ids)));
+    const profileError = profilePages.find((page) => page.error)?.error;
+    if (profileError) throw profileError;
+    const profiles = profilePages.flatMap((page) => page.data ?? []);
 
-    const profileIds = profiles.data.map((profile) => profile.id);
-    const [progress, promptBases, xrays, outputs] = profileIds.length
-      ? await Promise.all([
-          supabase.from("lesson_progress").select("profile_id,lesson_key,status").in("profile_id", profileIds),
-          supabase.from("prompt_base_submissions").select("profile_id,status,answers").in("profile_id", profileIds),
-          supabase.from("funnel_xray_submissions").select("profile_id,status").in("profile_id", profileIds),
-          supabase.from("student_outputs").select("profile_id,output_key,status,version").in("profile_id", profileIds),
-        ])
-      : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
-    if (progress.error) throw progress.error;
-    if (promptBases.error) throw promptBases.error;
-    if (xrays.error) throw xrays.error;
-    if (outputs.error) throw outputs.error;
+    const profileIds = profiles.map((profile) => profile.id);
+    const journeyPages = await Promise.all(chunk(profileIds).map((ids) => Promise.all([
+          supabase.from("lesson_progress").select("profile_id,lesson_key,status").in("profile_id", ids),
+          supabase.from("prompt_base_submissions").select("profile_id,status,answers").in("profile_id", ids),
+          supabase.from("funnel_xray_submissions").select("profile_id,status").in("profile_id", ids),
+          supabase.from("student_outputs").select("profile_id,output_key,status,version").in("profile_id", ids),
+        ])));
+    const journeyError = journeyPages.flat().find((result) => result.error)?.error;
+    if (journeyError) throw journeyError;
+    const progress = journeyPages.flatMap((page) => page[0].data ?? []);
+    const promptBases = journeyPages.flatMap((page) => page[1].data ?? []);
+    const xrays = journeyPages.flatMap((page) => page[2].data ?? []);
+    const outputs = journeyPages.flatMap((page) => page[3].data ?? []);
 
-    const profileByClerkId = new Map(profiles.data.map((profile) => [profile.clerk_user_id, profile.id]));
+    const profileByClerkId = new Map(profiles.map((profile) => [profile.clerk_user_id, profile.id]));
     const completedByProfile = new Map<string, Set<string>>();
-    for (const row of progress.data) {
+    for (const row of progress) {
       if (row.status !== "completed" || row.lesson_key !== "comece-aqui" && row.lesson_key !== "kit-final") continue;
       const completed = completedByProfile.get(row.profile_id) || new Set<string>();
       completed.add(row.lesson_key);
@@ -52,17 +59,17 @@ export async function GET() {
       completedByProfile.set(profileId, completed);
     };
     const promptBaseProfiles = new Set<string>();
-    for (const row of promptBases.data) {
+    for (const row of promptBases) {
       const answers = typeof row.answers === "object" && row.answers ? row.answers as Record<string, unknown> : {};
       if (row.status !== "completed" || !isValidExactTicket(String(answers.ticket || ""))) continue;
       promptBaseProfiles.add(row.profile_id);
       addCompleted(row.profile_id, "prompt-base");
     }
-    for (const row of xrays.data) if (row.status === "completed") addCompleted(row.profile_id, "raio-x");
-    for (const row of outputs.data) if (row.status === "completed" && (row.output_key !== "step_1_diagnosis" || Number(row.version) >= 2)) addCompleted(row.profile_id, row.output_key);
+    for (const row of xrays) if (row.status === "completed") addCompleted(row.profile_id, "raio-x");
+    for (const row of outputs) if (row.status === "completed" && (row.output_key !== "step_1_diagnosis" || Number(row.version) >= 2)) addCompleted(row.profile_id, row.output_key);
     const bootstrapIds = getBootstrapAdminIds();
     return NextResponse.json({
-      users: users.data.map((user) => {
+      users: users.map((user) => {
         const profileId = profileByClerkId.get(user.id);
         const completed = profileId ? completedByProfile.get(profileId) : undefined;
         return {
@@ -73,6 +80,7 @@ export async function GET() {
           isAdmin: bootstrapIds.includes(user.id) || user.privateMetadata.muvRole === "admin",
           isBootstrap: bootstrapIds.includes(user.id),
           isCurrent: user.id === userId,
+          hasProfile: Boolean(profileId),
           progressPercentage: journey.reduce((total, step) => total + (completed?.has(step.key) && (step.key !== "kit-final" || requiredResultKeys.every((key) => completed.has(key))) ? step.weight : 0), 0),
           promptBaseAvailable: Boolean(profileId && promptBaseProfiles.has(profileId)),
         };
@@ -172,4 +180,8 @@ function clerkErrorMessage(error: unknown) {
     if (first?.longMessage || first?.message) return first.longMessage || first.message;
   }
   return error instanceof Error && error.message ? error.message : "Não foi possível criar o aluno.";
+}
+
+function chunk<T>(items: T[], size = 100) {
+  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
 }

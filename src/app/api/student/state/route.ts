@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { assertAuthenticatedStudentAccess, loadDevelopmentStudentState, resetAuthenticatedStudentJourney, saveDevelopmentStudentState, StudentAccessError } from "@/lib/server/student-repository";
+import { assertAuthenticatedStudentAccess, loadDevelopmentStudentState, resetAuthenticatedStudentJourney, saveDevelopmentStudentState, StudentAccessError, StudentStateResetError } from "@/lib/server/student-repository";
 import { assertPromptAdmin, PromptAdminError } from "@/lib/server/prompt-admin";
 import type { AppData } from "@/lib/types";
 
@@ -21,7 +21,8 @@ export async function PUT(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to save student state", error);
-    return NextResponse.json({ error: error instanceof StudentAccessError ? error.message : "Não foi possível salvar no Supabase." }, { status: error instanceof StudentAccessError ? 403 : 503 });
+    const status = error instanceof StudentAccessError ? 403 : error instanceof StudentStateResetError ? 409 : 503;
+    return NextResponse.json({ error: error instanceof StudentAccessError || error instanceof StudentStateResetError ? error.message : "Não foi possível salvar no Supabase." }, { status });
   }
 }
 

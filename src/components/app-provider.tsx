@@ -76,10 +76,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!ready || !isSignedIn || !remoteReady.current) return;
     const timeout = window.setTimeout(() => {
-      void fetch("/api/student/state", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      void fetch("/api/student/state", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async (response) => {
+        if (response.status !== 409) return;
+        if (storageKey) localStorage.removeItem(storageKey);
+        const refreshed = await fetch("/api/student/state", { cache: "no-store" });
+        if (!refreshed.ok) return;
+        const payload = await refreshed.json() as { data: AppData | null };
+        if (payload.data) setData({ ...payload.data, authenticated: true, user: clerkUser(payload.data, user) });
+      });
     }, 1200);
     return () => window.clearTimeout(timeout);
-  }, [data, isSignedIn, ready]);
+  }, [data, isSignedIn, ready, storageKey, user]);
 
   const update = (recipe: (current: AppData) => AppData) => setData((current) => ({ ...recipe(current), lastActivityAt: new Date().toISOString() }));
   const reset = () => {
