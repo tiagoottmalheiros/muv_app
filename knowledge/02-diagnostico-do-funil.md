@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Cruzar a Base Estratégica do Negócio com o Raio-X Anti-Curiosos para identificar onde pessoas sem intenção entram, avançam ou esfriam.
+Cruzar a Base Estratégica com o Raio-X Anti-Curiosos para identificar onde pessoas sem intenção entram, avançam ou esfriam.
 
 ## Áreas analisadas
 
@@ -19,8 +19,8 @@ Cruzar a Base Estratégica do Negócio com o Raio-X Anti-Curiosos para identific
 - 23 a 29: Funil Parcial, vazamento moderado.
 - 30 a 36: Funil com Filtro Inicial, vazamento controlado.
 
-## Entregável esperado
+## Plano de Correção do Gargalo
 
-O diagnóstico deve informar o principal problema comercial, onde curiosos entram, onde o lead perde intenção, sinais de falta de intenção, gargalo de triagem, perguntas recomendadas e uma ação prioritária que possa ser aplicada imediatamente.
+O Raio-X apresenta somente o problema. A aplicação seguinte entrega a solução em sete blocos: prioridade comercial, causa provável do gargalo, ponto do funil que precisa mudar, impacto sobre tempo, conversão e caixa, ação para os próximos sete dias, indicador para acompanhar e o que não priorizar agora.
 
-Não recomende mais tráfego antes de verificar mensagem, filtro e triagem.
+O Plano não deve repetir pontuação ou classificação do Raio-X. Não recomende mais tráfego antes de verificar mensagem, filtro e triagem.

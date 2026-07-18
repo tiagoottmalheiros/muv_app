@@ -1,7 +1,8 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { journey } from "@/lib/journey";
+import { journey, requiredResultKeys } from "@/lib/journey";
+import { isValidExactTicket } from "@/lib/prompt-base";
 import { assertPromptAdmin, getBootstrapAdminIds, PromptAdminError } from "@/lib/server/prompt-admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -24,24 +25,41 @@ export async function GET() {
     if (profiles.error) throw profiles.error;
 
     const profileIds = profiles.data.map((profile) => profile.id);
-    const [progress, promptBases] = profileIds.length
+    const [progress, promptBases, xrays, outputs] = profileIds.length
       ? await Promise.all([
           supabase.from("lesson_progress").select("profile_id,lesson_key,status").in("profile_id", profileIds),
-          supabase.from("prompt_base_submissions").select("profile_id,status").in("profile_id", profileIds),
+          supabase.from("prompt_base_submissions").select("profile_id,status,answers").in("profile_id", profileIds),
+          supabase.from("funnel_xray_submissions").select("profile_id,status").in("profile_id", profileIds),
+          supabase.from("student_outputs").select("profile_id,output_key,status,version").in("profile_id", profileIds),
         ])
-      : [{ data: [], error: null }, { data: [], error: null }];
+      : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
     if (progress.error) throw progress.error;
     if (promptBases.error) throw promptBases.error;
+    if (xrays.error) throw xrays.error;
+    if (outputs.error) throw outputs.error;
 
     const profileByClerkId = new Map(profiles.data.map((profile) => [profile.clerk_user_id, profile.id]));
     const completedByProfile = new Map<string, Set<string>>();
     for (const row of progress.data) {
-      if (row.status !== "completed") continue;
+      if (row.status !== "completed" || row.lesson_key !== "comece-aqui" && row.lesson_key !== "kit-final") continue;
       const completed = completedByProfile.get(row.profile_id) || new Set<string>();
       completed.add(row.lesson_key);
       completedByProfile.set(row.profile_id, completed);
     }
-    const promptBaseProfiles = new Set(promptBases.data.filter((row) => row.status === "completed").map((row) => row.profile_id));
+    const addCompleted = (profileId: string, key: string) => {
+      const completed = completedByProfile.get(profileId) || new Set<string>();
+      completed.add(key);
+      completedByProfile.set(profileId, completed);
+    };
+    const promptBaseProfiles = new Set<string>();
+    for (const row of promptBases.data) {
+      const answers = typeof row.answers === "object" && row.answers ? row.answers as Record<string, unknown> : {};
+      if (row.status !== "completed" || !isValidExactTicket(String(answers.ticket || ""))) continue;
+      promptBaseProfiles.add(row.profile_id);
+      addCompleted(row.profile_id, "prompt-base");
+    }
+    for (const row of xrays.data) if (row.status === "completed") addCompleted(row.profile_id, "raio-x");
+    for (const row of outputs.data) if (row.status === "completed" && (row.output_key !== "step_1_diagnosis" || Number(row.version) >= 2)) addCompleted(row.profile_id, row.output_key);
     const bootstrapIds = getBootstrapAdminIds();
     return NextResponse.json({
       users: users.data.map((user) => {
@@ -55,7 +73,7 @@ export async function GET() {
           isAdmin: bootstrapIds.includes(user.id) || user.privateMetadata.muvRole === "admin",
           isBootstrap: bootstrapIds.includes(user.id),
           isCurrent: user.id === userId,
-          progressPercentage: journey.reduce((total, step) => total + (completed?.has(step.key) ? step.weight : 0), 0),
+          progressPercentage: journey.reduce((total, step) => total + (completed?.has(step.key) && (step.key !== "kit-final" || requiredResultKeys.every((key) => completed.has(key))) ? step.weight : 0), 0),
           promptBaseAvailable: Boolean(profileId && promptBaseProfiles.has(profileId)),
         };
       }),

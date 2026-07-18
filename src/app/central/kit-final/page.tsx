@@ -5,6 +5,7 @@ import { CalendarPlus, Check, CheckCircle2, CircleDashed, ExternalLink, PartyPop
 import { useEffect } from "react";
 import { useApp } from "@/components/app-provider";
 import { Button, CopyButton, DownloadButton, PageHeader, VideoLesson } from "@/components/ui";
+import { areRequiredResultsComplete } from "@/lib/journey";
 import type { OutputKey } from "@/lib/types";
 
 export default function KitPage() {
@@ -14,22 +15,23 @@ export default function KitPage() {
   const room = process.env.NEXT_PUBLIC_IMMERSION_URL;
   const videoUrl = process.env.NEXT_PUBLIC_IMMERSION_VIDEO_URL;
   const sections = [
-    { title: "Base Estratégica do Negócio", content: data.promptBase.generatedText, complete: data.promptBase.completed, edit: "/central/prompt-base" },
+    { title: "Base Estratégica", content: data.promptBase.generatedText, complete: data.promptBase.completed, edit: "/central/prompt-base" },
     { title: "Raio-X do Funil", content: data.xray.generatedText, complete: data.xray.completed, edit: "/central/raio-x" },
     ...(["step_1_diagnosis", "step_2_buyer_map", "step_3_filter_message", "step_4_triage_script"] as OutputKey[]).map((key) => ({ title: ({ step_1_diagnosis: "Plano de Correção do Gargalo", step_2_buyer_map: "Mapa Comprador vs. Curioso", step_3_filter_message: "Anúncio-Filtro", step_4_triage_script: "Script de Triagem Lite" })[key], content: data.outputs[key]?.content ?? "", complete: Boolean(data.outputs[key]?.completed), edit: ({ step_1_diagnosis: "/central/passo-1-diagnostico", step_2_buyer_map: "/central/passo-2-comprador-real", step_3_filter_message: "/central/passo-3-mensagem-filtro", step_4_triage_script: "/central/passo-4-triagem" })[key] })),
   ];
   const complete = sections.every((section) => section.complete);
+  const requiredResultsComplete = areRequiredResultsComplete(data);
   const all = sections.map((section) => `${section.title.toUpperCase()}\n\n${section.content}`).join("\n\n========================================\n\n");
 
   useEffect(() => {
     update((current) => {
-      if (current.startedSteps.includes("kit-final") && current.immersion.viewed) return current;
-      return { ...current, startedSteps: [...new Set([...current.startedSteps, "kit-final"])], immersion: { ...current.immersion, viewed: true } };
+      const eligible = areRequiredResultsComplete(current);
+      if (current.startedSteps.includes("kit-final") && current.immersion.viewed && (!eligible || current.kitReviewed)) return current;
+      return { ...current, kitReviewed: current.kitReviewed || eligible, startedSteps: [...new Set([...current.startedSteps, "kit-final"])], immersion: { ...current.immersion, viewed: true } };
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [requiredResultsComplete]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function confirmImmersion() {
-    if (!complete) return;
     update((current) => ({ ...current, immersion: { ...current.immersion, clicked: true, confirmed: true, confirmedAt: current.immersion.confirmedAt || new Date().toISOString() } }));
     if (room) window.open(room, "_blank", "noopener,noreferrer");
   }
@@ -43,7 +45,7 @@ export default function KitPage() {
         <h2 className="text-2xl font-bold text-white">Garanta sua vaga e transforme seus ativos em um sistema comercial conectado.</h2>
         <p className="mt-4 leading-7 text-muted">Você já construiu diagnóstico, critérios, mensagem e triagem. Na Imersão, essas peças serão conectadas em uma arquitetura com critérios claros de passagem e um plano de execução em 48 horas.</p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2">{["Arquitetura do funil e critérios de passagem", "Mensagem, aquisição e intenção", "Triagem, condução e próximos passos", "Plano de execução em 48 horas"].map((item) => <p className="flex items-start gap-3 text-sm text-muted" key={item}><Check className="mt-0.5 shrink-0 text-gold" size={16} />{item}</p>)}</div>
-        <div className="mt-7 rounded-2xl border border-white/8 bg-[#020617]/70 p-5"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs uppercase tracking-widest text-muted">Próxima turma</p><strong className="mt-2 block text-xl text-white">{date}</strong><span className="text-sm text-gold">{time}</span></div>{data.immersion.confirmed ? <div className="sm:text-right"><strong className="text-success">Vaga confirmada</strong><p className="mt-1 text-xs text-muted">Sua jornada MUV Starter está concluída.</p>{room && <a className="button button-secondary mt-3 w-full sm:w-auto" href={room} target="_blank" rel="noreferrer">Acessar Imersão<ExternalLink size={15} /></a>}</div> : <Button className="w-full sm:w-auto" disabled={!complete} title={complete ? "Garantir vaga na Imersão" : "Conclua as etapas anteriores para finalizar a jornada"} onClick={confirmImmersion}><CalendarPlus size={16} />{complete ? "Garantir minha vaga" : "Conclua os resultados"}</Button>}</div></div>
+        <div className="mt-7 rounded-2xl border border-white/8 bg-[#020617]/70 p-5"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs uppercase tracking-widest text-muted">Próxima turma</p><strong className="mt-2 block text-xl text-white">{date}</strong><span className="text-sm text-gold">{time}</span></div>{data.immersion.confirmed ? <div className="sm:text-right"><strong className="text-success">Vaga confirmada</strong><p className="mt-1 text-xs text-muted">Sua inscrição na Imersão foi registrada.</p>{room && <a className="button button-secondary mt-3 w-full sm:w-auto" href={room} target="_blank" rel="noreferrer">Acessar Imersão<ExternalLink size={15} /></a>}</div> : <Button className="w-full sm:w-auto" disabled={!complete} title={complete ? "Garantir vaga na Imersão" : "Conclua os resultados anteriores para liberar a inscrição"} onClick={confirmImmersion}><CalendarPlus size={16} />{complete ? "Garantir minha vaga" : "Conclua os resultados"}</Button>}</div></div>
       </section>
     </div>
 

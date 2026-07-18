@@ -15,7 +15,7 @@ export default function Dashboard() {
       <p className="eyebrow">MUV Starter</p>
       <h1 className="display-title mx-auto">Construa seu Filtro Anti-Curiosos com IA</h1>
       <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-muted">Em até 2 horas, avance pelas aplicações guiadas para identificar dor, urgência e perfil antes do próximo passo comercial.</p>
-      <Link href={next.href} className="button button-primary mt-6">{progress ? "Continuar de onde parei" : "Começar aplicação"}<ArrowRight size={16} /></Link>
+      <Link href={next.href} className="button button-primary mt-6">{next.key === "comece-aqui" ? "Começar aplicação" : "Continuar de onde parei"}<ArrowRight size={16} /></Link>
     </header>
 
     <section className="card p-3 sm:p-4">
@@ -33,6 +33,6 @@ export default function Dashboard() {
         </Link>;
       })}</div>
     </section>
-    <p className="mt-5 text-center text-xs text-muted">Uma etapa só é concluída quando o entregável obrigatório é salvo.</p>
+    <p className="mt-5 text-center text-xs text-muted">Conclua os resultados obrigatórios e entre na aula final para chegar a 100%.</p>
   </div>;
 }

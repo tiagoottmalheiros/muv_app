@@ -79,12 +79,13 @@ function createInitialState(): PromptStudioState {
 }
 
 function normalizeState(state: PromptStudioState): PromptStudioState {
-  const fallback = getDefaultPromptConfig().contextPrompt;
+  const defaults = getDefaultPromptConfig();
+  const fallback = defaults.contextPrompt;
   const normalize = (config: PromptConfig): PromptConfig => ({
     ...config,
     agentInstructions: normalizeLegacyProductTerms(config.agentInstructions),
     contextPrompt: normalizeLegacyProductTerms(config.contextPrompt ?? fallback),
-    stagePrompts: Object.fromEntries(Object.entries(config.stagePrompts).map(([key, value]) => [key, normalizeLegacyProductTerms(value)])) as PromptConfig["stagePrompts"],
+    stagePrompts: { ...Object.fromEntries(Object.entries(config.stagePrompts).map(([key, value]) => [key, normalizeLegacyProductTerms(value)])) as PromptConfig["stagePrompts"], step_1_diagnosis: defaults.stagePrompts.step_1_diagnosis },
   });
   return { draft: normalize(state.draft), published: normalize(state.published), history: state.history.map(normalize) };
 }

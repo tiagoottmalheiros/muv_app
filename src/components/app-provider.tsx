@@ -1,9 +1,12 @@
 "use client";
 
 import { useAuth, useClerk, useUser } from "@clerk/nextjs";
+import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { getPromptCurrentStep, isLegacyTicket } from "@/lib/prompt-base";
 import { normalizeLegacyProductTerms } from "@/lib/product-copy";
 import { EMPTY_APP_DATA, type AppData } from "@/lib/types";
+import { generateXrayText } from "@/lib/xray";
 
 const STORAGE_PREFIX = "central-muv-v3";
 type ContextValue = { data: AppData; ready: boolean; update: (recipe: (current: AppData) => AppData) => void; logout: () => void; reset: () => void };
@@ -13,12 +16,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn, userId } = useAuth();
   const { signOut } = useClerk();
   const { user } = useUser();
+  const pathname = usePathname();
   const [data, setData] = useState<AppData>(EMPTY_APP_DATA);
   const [ready, setReady] = useState(false);
   const hydratedIdentity = useRef<string | null>(null);
   const remoteAttempted = useRef(false);
   const remoteReady = useRef(false);
   const storageKey = userId ? `${STORAGE_PREFIX}:${userId}` : null;
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -85,11 +93,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 }
 
 function normalizePersistedContent(data: AppData): AppData {
+  const outputs = Object.fromEntries(Object.entries(data.outputs).map(([key, output]) => {
+    if (!output) return [key, output];
+    if (key === "step_1_diagnosis" && !/prioridade comercial/i.test(output.content)) return [key, { ...output, content: "", completed: false }];
+    return [key, { ...output, title: normalizeLegacyProductTerms(output.title), content: normalizeLegacyProductTerms(output.content) }];
+  })) as AppData["outputs"];
+  const legacyTicket = isLegacyTicket(data.promptBase.answers.ticket);
   return {
     ...data,
-    promptBase: { ...data.promptBase, generatedText: normalizeLegacyProductTerms(data.promptBase.generatedText) },
-    xray: { ...data.xray, generatedText: normalizeLegacyProductTerms(data.xray.generatedText) },
-    outputs: Object.fromEntries(Object.entries(data.outputs).map(([key, output]) => [key, output ? { ...output, title: normalizeLegacyProductTerms(output.title), content: normalizeLegacyProductTerms(output.content) } : output])) as AppData["outputs"],
+    promptBase: { ...data.promptBase, completed: data.promptBase.completed && !legacyTicket, currentStep: getPromptCurrentStep(data.promptBase.answers), generatedText: normalizeLegacyProductTerms(data.promptBase.generatedText) },
+    xray: { ...data.xray, generatedText: data.xray.completed ? generateXrayText(data.xray.answers) : normalizeLegacyProductTerms(data.xray.generatedText) },
+    outputs,
   };
 }
 

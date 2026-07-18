@@ -2,9 +2,11 @@ import "server-only";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { isFinalStepCompleted } from "@/lib/journey";
+import { getPromptCurrentStep, isLegacyTicket, isValidExactTicket } from "@/lib/prompt-base";
 import { normalizeLegacyProductTerms } from "@/lib/product-copy";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { EMPTY_APP_DATA, type AppData, type OutputKey } from "@/lib/types";
+import { generateXrayText } from "@/lib/xray";
 
 export class StudentAccessError extends Error {}
 
@@ -30,18 +32,21 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
   if (!hasData) return null;
 
   const outputMap = Object.fromEntries(
-    (outputs.data ?? []).map((output) => [
-      output.output_key,
-      {
+    (outputs.data ?? []).map((output) => {
+      const legacyPlan = output.output_key === "step_1_diagnosis" && Number(output.version ?? 1) < 2;
+      return [output.output_key, {
         key: output.output_key as OutputKey,
         title: normalizeLegacyProductTerms(output.title ?? "Entregável MUV"),
-        content: normalizeLegacyProductTerms(output.content ?? ""),
-        completed: output.status === "completed",
+        content: legacyPlan ? "" : normalizeLegacyProductTerms(output.content ?? ""),
+        completed: output.status === "completed" && !legacyPlan,
         updatedAt: output.updated_at,
-      },
-    ]),
+      }];
+    }),
   );
   const progressMap = new Map((progress.data ?? []).map((item) => [item.lesson_key, item]));
+  const promptAnswers = { ...(promptBase.data?.answers ?? EMPTY_APP_DATA.promptBase.answers), name: profile.name ?? "Aluno MUV", email: profile.primary_email ?? "" };
+  const legacyTicket = isLegacyTicket(String(promptAnswers.ticket || ""));
+  const xrayAnswers = xray.data?.answers ?? [];
 
   return {
     ...EMPTY_APP_DATA,
@@ -54,21 +59,21 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
       avatarUrl: profile.avatar_url ?? undefined,
     },
     promptBase: {
-      answers: { ...(promptBase.data?.answers ?? EMPTY_APP_DATA.promptBase.answers), name: profile.name ?? "Aluno MUV", email: profile.primary_email ?? "" },
+      answers: promptAnswers,
       generatedText: normalizeLegacyProductTerms(promptBase.data?.generated_text ?? ""),
-      completed: promptBase.data?.status === "completed",
-      currentStep: Number(progressMap.get("prompt-base")?.percent ?? 0),
+      completed: promptBase.data?.status === "completed" && !legacyTicket,
+      currentStep: getPromptCurrentStep(promptAnswers),
       updatedAt: promptBase.data?.updated_at,
     },
     xray: {
-      answers: xray.data?.answers ?? [],
+      answers: xrayAnswers,
       score: Number(xray.data?.score ?? 0),
       classification: xray.data?.classification ?? "",
       leakLevel: xray.data?.leak_level ?? "",
       bottleneck: xray.data?.main_bottleneck ?? "mensagem",
-      generatedText: normalizeLegacyProductTerms(xray.data?.generated_text ?? ""),
+      generatedText: xray.data?.status === "completed" ? generateXrayText(xray.data?.answers ?? []) : normalizeLegacyProductTerms(xray.data?.generated_text ?? ""),
       completed: xray.data?.status === "completed",
-      currentStep: Number(progressMap.get("raio-x")?.percent ?? 0),
+      currentStep: xrayAnswers.length ? Math.min(xrayAnswers.length + 1, 12) : 0,
       updatedAt: xray.data?.updated_at,
     },
     outputs: outputMap,
@@ -89,6 +94,7 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
 export async function saveDevelopmentStudentState(data: AppData) {
   const supabase = createSupabaseAdminClient();
   const profile = await getOrCreateAuthenticatedProfile();
+  if (data.promptBase.completed && !isValidExactTicket(data.promptBase.answers.ticket)) throw new Error("O ticket médio deve ser de pelo menos R$ 1.000.");
   const now = new Date().toISOString();
 
   const operations = [
@@ -154,7 +160,7 @@ export async function saveDevelopmentStudentState(data: AppData) {
       title: output!.title,
       content: output!.content,
       status: output!.completed ? "completed" : "draft",
-      version: 1,
+      version: output!.key === "step_1_diagnosis" ? 2 : 1,
       updated_at: now,
     }));
   if (outputRows.length) {

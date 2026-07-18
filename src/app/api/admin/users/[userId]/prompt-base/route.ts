@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getPromptLabel, promptQuestions, type PromptQuestion } from "@/lib/prompt-base";
+import { formatPromptTicket, getPromptLabel, isValidExactTicket, promptQuestions, type PromptQuestion } from "@/lib/prompt-base";
 import { assertPromptAdmin, PromptAdminError } from "@/lib/server/prompt-admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -19,9 +19,8 @@ export async function GET(_request: Request, context: { params: Promise<{ userId
 
     const submission = await supabase.from("prompt_base_submissions").select("answers,status").eq("profile_id", profile.data.id).maybeSingle();
     if (submission.error) throw submission.error;
-    if (!submission.data || submission.data.status !== "completed") return NextResponse.json({ error: "O aluno ainda não concluiu o Prompt Base." }, { status: 404 });
-
-    const answers = isRecord(submission.data.answers) ? submission.data.answers : {};
+    const answers = submission.data && isRecord(submission.data.answers) ? submission.data.answers : {};
+    if (!submission.data || submission.data.status !== "completed" || !isValidExactTicket(stringAnswer(answers, "ticket"))) return NextResponse.json({ error: "O aluno ainda não concluiu a Base Estratégica com um ticket exato." }, { status: 404 });
     const exported = {
       schemaVersion: 1,
       student: {
@@ -68,6 +67,10 @@ function exportAnswer(question: PromptQuestion, answers: Record<string, unknown>
       value: stringAnswer(answers, question.key) || null,
       none: answers[question.noneKey] === true,
     };
+  }
+  if (question.type === "currency") {
+    const value = stringAnswer(answers, question.key);
+    return { value, label: formatPromptTicket(value) };
   }
   if (question.type === "transform") {
     return {

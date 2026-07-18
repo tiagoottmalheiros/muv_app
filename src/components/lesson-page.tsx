@@ -27,6 +27,7 @@ export function LessonPage({ lessonKey }: { lessonKey: OutputKey }) {
     lessonKey === "step_3_filter_message" && data.outputs.step_1_diagnosis?.completed && data.outputs.step_2_buyer_map?.completed ||
     lessonKey === "step_4_triage_script" && data.outputs.step_1_diagnosis?.completed && data.outputs.step_2_buyer_map?.completed && data.outputs.step_3_filter_message?.completed
   );
+  const generateLabel = lessonKey === "step_1_diagnosis" ? "Gerar meu Plano de Correção" : "Processar esta etapa";
 
   async function generate() {
     setLoading(true);
@@ -62,7 +63,7 @@ export function LessonPage({ lessonKey }: { lessonKey: OutputKey }) {
         <div className="text-center"><div className="mx-auto grid size-12 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary"><Sparkles size={21} /></div><p className="eyebrow mt-5">Aplicação automática</p><h2 className="text-xl font-semibold text-white">Gerar {lesson.deliverable}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted">A Central cruza suas respostas e os resultados anteriores para construir este ativo de forma personalizada.</p></div>
         {!prerequisitesReady && <p className="mt-5 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-center text-xs text-amber-200">Conclua as etapas anteriores antes de processar este resultado.</p>}
         {error && <p className="mt-5 rounded-xl border border-red-400/20 bg-red-400/5 p-4 text-center text-xs text-red-300">{error}</p>}
-        <Button className="mt-6 w-full" disabled={!prerequisitesReady || loading} onClick={() => void generate()}>{loading ? <LoaderCircle className="animate-spin" size={17} /> : result ? <RefreshCw size={17} /> : <Sparkles size={17} />}{loading ? "Processando suas respostas..." : result ? "Gerar novamente" : "Processar esta etapa"}</Button>
+        <Button className="mt-6 w-full" disabled={!prerequisitesReady || loading} onClick={() => void generate()}>{loading ? <LoaderCircle className="animate-spin" size={17} /> : result ? <RefreshCw size={17} /> : <Sparkles size={17} />}{loading ? "Processando suas respostas..." : result ? "Gerar novamente" : generateLabel}</Button>
       </section>
 
        {result && <section className="card overflow-hidden p-0"><div className="flex items-center justify-between border-b border-white/8 px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-success">Resultado salvo</p><h2 className="mt-1 text-sm font-semibold text-white">{lesson.deliverable}</h2></div><AutoSaveStatus date={existing?.updatedAt ?? new Date().toISOString()} /></div><div className="whitespace-pre-wrap p-5 text-sm leading-7 text-[#dbeafe]">{result}</div><div className="border-t border-white/8 p-4"><Link href={lesson.nextHref} className="button button-primary w-full">{lesson.nextLabel}<ArrowRight size={16} /></Link>{mode === "demo" && <p className="mt-3 text-center text-[10px] text-muted">Resultado demonstrativo. Configure a API para processamento com IA.</p>}</div></section>}
