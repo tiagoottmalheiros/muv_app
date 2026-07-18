@@ -39,7 +39,7 @@ type TestResult = {
 const tabs: { key: EditorTab; label: string; short: string }[] = [
   { key: "agent", label: "Instrução geral", short: "Agente" },
   { key: "context", label: "Contexto permanente", short: "Contexto" },
-  ...OUTPUT_KEYS.map((key, index) => ({ key, label: PROMPT_LABELS[key], short: `Passo ${index + 1}` })),
+  ...OUTPUT_KEYS.map((key, index) => ({ key, label: PROMPT_LABELS[key], short: `Tarefa ${index + 1}` })),
 ];
 const FALLBACK_MODELS = ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini", "gpt-4o"];
 
@@ -271,7 +271,7 @@ export function PromptStudio() {
                       <span
                         className={`grid size-7 shrink-0 place-items-center rounded-lg text-[10px] font-black ${activeTab === tab.key ? "bg-primary/15" : "bg-white/5"}`}
                       >
-                        {tab.key === "agent" || tab.key === "context" ? <Sparkles size={13} /> : tab.short.replace("Passo ", "0")}
+                        {tab.key === "agent" || tab.key === "context" ? <Sparkles size={13} /> : tab.short.replace("Tarefa ", "0")}
                       </span>
                       {tab.label}
                     </button>

@@ -19,7 +19,7 @@ Cruzar a Base Estratégica com o Raio-X Anti-Curiosos para identificar onde pess
 - 23 a 29: Funil Parcial, vazamento moderado.
 - 30 a 36: Funil com Filtro Inicial, vazamento controlado.
 
-## Plano de Correção do Gargalo
+## Tarefa 1 — Plano de Correção do Gargalo
 
 O Raio-X apresenta somente o problema. A aplicação seguinte entrega a solução em sete blocos: prioridade comercial, causa provável do gargalo, ponto do funil que precisa mudar, impacto sobre tempo, conversão e caixa, ação para os próximos sete dias, indicador para acompanhar e o que não priorizar agora.
 

@@ -6,5 +6,6 @@ export function normalizeLegacyProductTerms(text: string) {
     .replace(/Don MUV/gi, "Central MUV")
     .replace(/Prompt Base do Negócio/gi, "Base Estratégica")
     .replace(/Prompt Base/gi, "Base Estratégica")
-    .replace(/\bPasso 1\b(?!\d)/gi, "Plano de Correção do Gargalo");
+    .replace(/\bPasso 1\b(?!\s*[—-]\s*Plano de Correção do Gargalo|\d)/gi, "Tarefa 1 — Plano de Correção do Gargalo")
+    .replace(/\bPasso ([1-4])\b/gi, "Tarefa $1");
 }

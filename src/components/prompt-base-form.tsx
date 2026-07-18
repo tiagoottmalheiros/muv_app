@@ -77,5 +77,5 @@ function CurrencyQuestion({ question, data, setField }: { question: Extract<Prom
     const normalized = normalizeTicketInput(input);
     setInput(formatPromptTicket(normalized));
   }
-  return <><label className="text-xs font-bold text-muted">Valor médio por contrato<input aria-describedby={`${question.id}-hint`} aria-invalid={Boolean(storedValue) && !valid} autoFocus className="field mt-2" inputMode="decimal" value={input} placeholder={question.placeholder} onBlur={format} onChange={(event) => change(event.target.value)} /></label>{legacy && <p className="mt-3 text-xs text-amber-200">Valor anterior: {formatPromptTicket(storedValue)}. Informe agora o valor exato.</p>}<p className={`mt-3 text-xs ${storedValue && !valid ? "text-red-300" : "text-muted"}`} id={`${question.id}-hint`}>Valor mínimo: R$ 1.000. Valores de R$ 1.000.000 ou mais são aceitos.</p></>;
+  return <><label className="text-xs font-bold text-muted">Valor médio por contrato<input aria-invalid={Boolean(storedValue) && !valid} autoFocus className="field mt-2" inputMode="decimal" value={input} placeholder={question.placeholder} onBlur={format} onChange={(event) => change(event.target.value)} /></label>{legacy && <p className="mt-3 text-xs text-amber-200">Valor anterior: {formatPromptTicket(storedValue)}. Informe agora o valor exato.</p>}</>;
 }

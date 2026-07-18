@@ -94,7 +94,7 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
 export async function saveDevelopmentStudentState(data: AppData) {
   const supabase = createSupabaseAdminClient();
   const profile = await getOrCreateAuthenticatedProfile();
-  if (data.promptBase.completed && !isValidExactTicket(data.promptBase.answers.ticket)) throw new Error("O ticket médio deve ser de pelo menos R$ 1.000.");
+  if (data.promptBase.completed && !isValidExactTicket(data.promptBase.answers.ticket)) throw new Error("O ticket médio deve ser um valor exato maior que zero.");
   const now = new Date().toISOString();
 
   const operations = [

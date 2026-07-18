@@ -4,7 +4,7 @@ import type { PromptBaseAnswers } from "./types";
 export type PromptQuestion =
   | { id: string; title: string; subtitle: string; type: "select"; key: keyof PromptBaseAnswers; options: { value: string; label: string }[]; otherKey?: keyof PromptBaseAnswers }
   | { id: string; title: string; subtitle: string; type: "textarea"; key: keyof PromptBaseAnswers; placeholder: string; maxLength: number }
-  | { id: string; title: string; subtitle: string; type: "currency"; key: keyof PromptBaseAnswers; placeholder: string; minimumCents: number }
+  | { id: string; title: string; subtitle: string; type: "currency"; key: keyof PromptBaseAnswers; placeholder: string }
   | { id: string; title: string; subtitle: string; type: "optional"; key: keyof PromptBaseAnswers; noneKey: keyof PromptBaseAnswers; placeholder: string; noneLabel: string; textarea?: boolean; maxLength?: number }
   | { id: string; title: string; subtitle: string; type: "transform"; fromKey: keyof PromptBaseAnswers; toKey: keyof PromptBaseAnswers };
 
@@ -14,7 +14,7 @@ export const promptQuestions: PromptQuestion[] = [
   { id: "website", title: "Seu negócio tem site?", subtitle: "Se tiver, cole o link para enriquecer o contexto do seu negócio.", type: "optional", key: "websiteUrl", noneKey: "noWebsite", noneLabel: "Não tenho site", placeholder: "https://www.seunegocio.com.br" },
   { id: "social", title: "Seu negócio tem redes sociais?", subtitle: "Cole os links principais, como Instagram, LinkedIn, YouTube ou TikTok.", type: "optional", key: "socialLinks", noneKey: "noSocialLinks", noneLabel: "Não tenho redes sociais", placeholder: "Links das redes sociais", textarea: true, maxLength: 400 },
   { id: "offer", title: "O que você vende?", subtitle: "Descreva sua principal oferta em uma frase.", type: "textarea", key: "offer", placeholder: "Ex: Consultoria para clínicas aumentarem agendamentos qualificados.", maxLength: 300 },
-  { id: "ticket", title: "Qual é o ticket médio dessa oferta?", subtitle: "Informe o valor médio por contrato, não o faturamento mensal.", type: "currency", key: "ticket", placeholder: "R$ 1.000", minimumCents: 100000 },
+  { id: "ticket", title: "Qual é o ticket médio dessa oferta?", subtitle: "Informe o valor médio por contrato, não o faturamento mensal.", type: "currency", key: "ticket", placeholder: "R$ 500" },
   { id: "salesModel", title: "Como a venda acontece hoje?", subtitle: "Escolha o principal caminho até a venda.", type: "select", key: "salesModel", options: [["whatsapp", "WhatsApp"], ["reuniao", "Reunião / call"], ["diagnostico", "Diagnóstico consultivo"], ["ligacao", "Ligação"], ["proposta", "Proposta comercial"], ["checkout", "Checkout direto"], ["presencial", "Atendimento presencial"]].map(([value, label]) => ({ value, label })) },
   { id: "idealBuyer", title: "Quem é seu melhor cliente?", subtitle: "Descreva quem tem mais chance de comprar e ter resultado.", type: "textarea", key: "idealBuyer", placeholder: "Ex: Donos de clínicas que já recebem leads.", maxLength: 400 },
   { id: "problem", title: "Qual problema principal sua oferta resolve?", subtitle: "Fale da dor real do cliente antes de comprar.", type: "textarea", key: "problem", placeholder: "Descreva o problema central.", maxLength: 400 },
@@ -48,7 +48,7 @@ export function isValidExactTicket(value: string) {
   if (!/^\d+(?:\.\d{1,2})?$/.test(value)) return false;
   const [whole, decimals = ""] = value.split(".");
   const cents = BigInt(whole) * BigInt(100) + BigInt(decimals.padEnd(2, "0"));
-  return cents >= BigInt(100000);
+  return cents > BigInt(0);
 }
 
 export function formatPromptTicket(value: string) {
