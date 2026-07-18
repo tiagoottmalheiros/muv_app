@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Check, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "./app-provider";
 import { AutoSaveStatus, Button, ProgressBar, VideoLesson } from "./ui";
-import { formatPromptTicket, generatePromptBase, getPromptLabel, isLegacyTicket, isPromptQuestionAnswered, isValidExactTicket, normalizeTicketInput, promptBaseSchema, promptQuestions, type PromptQuestion } from "@/lib/prompt-base";
+import { formatPromptTicket, generatePromptBase, getPromptLabel, isPromptQuestionAnswered, promptBaseSchema, promptQuestions, type PromptQuestion } from "@/lib/prompt-base";
 import type { PromptBaseAnswers } from "@/lib/types";
 
 export function PromptBaseForm() {
@@ -59,23 +59,6 @@ function PromptBaseResult({ answers, savedAt, onEdit }: { answers: PromptBaseAns
 function renderQuestion(question: PromptQuestion, data: PromptBaseAnswers, setField: (key: keyof PromptBaseAnswers, value: string | boolean) => void) {
   if (question.type === "select") return <><div className="grid gap-2 sm:grid-cols-2">{question.options.map((option) => <button className={`option ${data[question.key] === option.value ? "option-selected" : ""}`} key={option.value} onClick={() => { setField(question.key, option.value); if (question.otherKey && option.value !== "outro") setField(question.otherKey, ""); }}>{option.label}</button>)}</div>{question.otherKey && data[question.key] === "outro" && <input autoFocus className="field mt-4" placeholder="Qual segmento?" value={String(data[question.otherKey])} onChange={(e) => setField(question.otherKey!, e.target.value)} />}</>;
   if (question.type === "textarea") { const value = String(data[question.key]); return <><textarea className="field" maxLength={question.maxLength} value={value} placeholder={question.placeholder} onChange={(e) => setField(question.key, e.target.value)} /><p className="mt-2 text-right text-xs text-muted">{value.length}/{question.maxLength}</p></>; }
-  if (question.type === "currency") return <CurrencyQuestion question={question} data={data} setField={setField} />;
   if (question.type === "optional") { const none = data[question.noneKey] === true; const value = String(data[question.key]); const Field = question.textarea ? "textarea" : "input"; return <><Field className="field" maxLength={question.maxLength} disabled={none} value={value} placeholder={question.placeholder} onChange={(e) => setField(question.key, e.target.value)} /><button className={`option mt-3 flex items-center gap-3 ${none ? "option-selected" : ""}`} onClick={() => { setField(question.noneKey, !none); if (!none) setField(question.key, ""); }}><span className="grid size-5 place-items-center rounded border border-white/20">{none && <Check size={13} />}</span>{question.noneLabel}</button></>; }
   return <div className="grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]"><input className="field" placeholder="Meu cliente sai de..." value={String(data[question.fromKey])} onChange={(e) => setField(question.fromKey, e.target.value)} /><ArrowRight className="mx-auto text-gold" /><input className="field" placeholder="...e chega em" value={String(data[question.toKey])} onChange={(e) => setField(question.toKey, e.target.value)} /></div>;
-}
-
-function CurrencyQuestion({ question, data, setField }: { question: Extract<PromptQuestion, { type: "currency" }>; data: PromptBaseAnswers; setField: (key: keyof PromptBaseAnswers, value: string | boolean) => void }) {
-  const storedValue = String(data[question.key]);
-  const legacy = isLegacyTicket(storedValue);
-  const [input, setInput] = useState(legacy ? "" : formatPromptTicket(storedValue));
-  const valid = isValidExactTicket(storedValue);
-  function change(value: string) {
-    setInput(value);
-    setField(question.key, normalizeTicketInput(value));
-  }
-  function format() {
-    const normalized = normalizeTicketInput(input);
-    setInput(formatPromptTicket(normalized));
-  }
-  return <><label className="text-xs font-bold text-muted">Valor médio por contrato<input aria-invalid={Boolean(storedValue) && !valid} autoFocus className="field mt-2" inputMode="decimal" value={input} placeholder={question.placeholder} onBlur={format} onChange={(event) => change(event.target.value)} /></label>{legacy && <p className="mt-3 text-xs text-amber-200">Valor anterior: {formatPromptTicket(storedValue)}. Informe agora o valor exato.</p>}</>;
 }

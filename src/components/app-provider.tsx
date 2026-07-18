@@ -3,7 +3,7 @@
 import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { getPromptCurrentStep, isLegacyTicket } from "@/lib/prompt-base";
+import { getPromptCurrentStep, isValidTicket } from "@/lib/prompt-base";
 import { normalizeLegacyProductTerms } from "@/lib/product-copy";
 import { EMPTY_APP_DATA, type AppData } from "@/lib/types";
 import { generateXrayText } from "@/lib/xray";
@@ -105,10 +105,10 @@ function normalizePersistedContent(data: AppData): AppData {
     if (key === "step_1_diagnosis" && !/prioridade comercial/i.test(output.content)) return [key, { ...output, content: "", completed: false }];
     return [key, { ...output, title: normalizeLegacyProductTerms(output.title), content: normalizeLegacyProductTerms(output.content) }];
   })) as AppData["outputs"];
-  const legacyTicket = isLegacyTicket(data.promptBase.answers.ticket);
+  const validTicket = isValidTicket(data.promptBase.answers.ticket);
   return {
     ...data,
-    promptBase: { ...data.promptBase, completed: data.promptBase.completed && !legacyTicket, currentStep: getPromptCurrentStep(data.promptBase.answers), generatedText: normalizeLegacyProductTerms(data.promptBase.generatedText) },
+    promptBase: { ...data.promptBase, completed: data.promptBase.completed && validTicket, currentStep: getPromptCurrentStep(data.promptBase.answers), generatedText: normalizeLegacyProductTerms(data.promptBase.generatedText) },
     xray: { ...data.xray, generatedText: data.xray.completed ? generateXrayText(data.xray.answers) : normalizeLegacyProductTerms(data.xray.generatedText) },
     outputs,
   };

@@ -2,7 +2,7 @@ import "server-only";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { isFinalStepCompleted } from "@/lib/journey";
-import { getPromptCurrentStep, isLegacyTicket, isValidExactTicket } from "@/lib/prompt-base";
+import { getPromptCurrentStep, isValidTicket } from "@/lib/prompt-base";
 import { normalizeLegacyProductTerms } from "@/lib/product-copy";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { EMPTY_APP_DATA, type AppData, type OutputKey } from "@/lib/types";
@@ -43,7 +43,7 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
   );
   const progressMap = new Map((progress.data ?? []).map((item) => [item.lesson_key, item]));
   const promptAnswers = { ...(promptBase.data?.answers ?? EMPTY_APP_DATA.promptBase.answers), name: profile.name ?? "Aluno MUV", email: profile.primary_email ?? "" };
-  const legacyTicket = isLegacyTicket(String(promptAnswers.ticket || ""));
+  const validTicket = isValidTicket(String(promptAnswers.ticket || ""));
   const xrayAnswers = xray.data?.answers ?? [];
 
   return {
@@ -59,7 +59,7 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
     promptBase: {
       answers: promptAnswers,
       generatedText: normalizeLegacyProductTerms(promptBase.data?.generated_text ?? ""),
-      completed: promptBase.data?.status === "completed" && !legacyTicket,
+      completed: promptBase.data?.status === "completed" && validTicket,
       currentStep: getPromptCurrentStep(promptAnswers),
       updatedAt: promptBase.data?.updated_at,
     },
@@ -94,7 +94,7 @@ export async function saveDevelopmentStudentState(data: AppData) {
   const supabase = createSupabaseAdminClient();
   const profile = await getOrCreateAuthenticatedProfile();
   if (new Date(data.journeyResetAt || 0).getTime() < new Date(profile.journey_reset_at || 0).getTime()) throw new StudentStateResetError("A jornada foi zerada por um administrador.");
-  if (data.promptBase.completed && !isValidExactTicket(data.promptBase.answers.ticket)) throw new Error("O ticket médio deve ser um valor exato maior que zero.");
+  if (data.promptBase.completed && !isValidTicket(data.promptBase.answers.ticket)) throw new Error("Selecione uma faixa válida para o ticket médio.");
   const now = new Date().toISOString();
 
   const operations = [

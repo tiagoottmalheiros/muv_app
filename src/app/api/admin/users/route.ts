@@ -2,7 +2,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { journey, requiredResultKeys } from "@/lib/journey";
-import { isValidExactTicket } from "@/lib/prompt-base";
+import { isValidTicket } from "@/lib/prompt-base";
 import { assertPromptAdmin, getBootstrapAdminIds, PromptAdminError } from "@/lib/server/prompt-admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -61,7 +61,7 @@ export async function GET() {
     const promptBaseProfiles = new Set<string>();
     for (const row of promptBases) {
       const answers = typeof row.answers === "object" && row.answers ? row.answers as Record<string, unknown> : {};
-      if (row.status !== "completed" || !isValidExactTicket(String(answers.ticket || ""))) continue;
+      if (row.status !== "completed" || !isValidTicket(String(answers.ticket || ""))) continue;
       promptBaseProfiles.add(row.profile_id);
       addCompleted(row.profile_id, "prompt-base");
     }
