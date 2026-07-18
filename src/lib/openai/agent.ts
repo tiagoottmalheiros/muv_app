@@ -4,7 +4,7 @@ import { createOpenAIClient } from "./client";
 import { formatPromptTicket } from "@/lib/prompt-base";
 import type { EditablePromptConfig, PromptConfig } from "@/lib/prompt-config";
 import { loadPublishedPromptConfig } from "@/lib/server/prompt-repository";
-import { getDefaultPromptConfig, step1OutputContract } from "@/lib/server/stage-prompts";
+import { getDefaultPromptConfig, markdownOutputContract, step1OutputContract } from "@/lib/server/stage-prompts";
 import type { GenerationRequest } from "@/lib/server/student-context";
 
 export async function generateWithMuvAgent(
@@ -20,7 +20,7 @@ export async function generateWithMuvAgent(
   const mandatoryContract = lessonKey === "step_1_diagnosis" ? `\n\nCONTRATO OBRIGATÓRIO DE SAÍDA\n${step1OutputContract}\nIgnore qualquer instrução anterior que conflite com este contrato.` : "";
   const response = await openai.responses.create({
     model: config.model,
-    instructions: `${config.agentInstructions}\n\nCONTEXTO PERMANENTE\n${config.contextPrompt}\n\nINSTRUÇÃO DA ETAPA\n${config.stagePrompts[lessonKey]}${mandatoryContract}`,
+    instructions: `${config.agentInstructions}\n\nCONTEXTO PERMANENTE\n${config.contextPrompt}\n\nINSTRUÇÃO DA ETAPA\n${config.stagePrompts[lessonKey]}${mandatoryContract}\n\nPADRÃO VISUAL DE APRESENTAÇÃO\n${markdownOutputContract}`,
     input: `CONTEXTO ESTRUTURADO DO ALUNO\n${JSON.stringify(preparedContext)}`,
     tools: vectorStoreId ? [{ type: "file_search", vector_store_ids: [vectorStoreId], max_num_results: 8 }] : undefined,
     max_output_tokens: config.maxOutputTokens,
@@ -49,7 +49,7 @@ function prepareAgentContext(lessonKey: GenerationRequest["lessonKey"], context:
 }
 
 function formatStep1Output(content: string) {
-  if (/\b(pontuação|classificação|score|funil cego|funil solto|funil reativo|funil parcial|funil com filtro inicial)\b|\b\d+\s*(?:\/|de)\s*36\b|\b\d+\s*pontos?\b/i.test(content)) throw new Error("O Plano de Correção repetiu dados exclusivos do Raio-X.");
+  if (/\b(?:pontuação|score)\b[^\n]{0,24}\b\d+\b|\b(?:pontuação|classificação|score)\s+(?:do\s+)?raio-x\b|\b(funil cego|funil solto|funil reativo|funil parcial|funil com filtro inicial)\b|\b\d+\s*(?:\/|de)\s*36\b/i.test(content)) throw new Error("O Plano de Correção repetiu dados exclusivos do Raio-X.");
   const sections = [
     ["PRIORIDADE COMERCIAL", "prioridade comercial"],
     ["CAUSA PROVÁVEL DO GARGALO", "causa provavel do gargalo"],
@@ -72,11 +72,11 @@ function formatStep1Output(content: string) {
     }
   }
   if (sections.some(([label]) => !collected.get(label)?.join(" ").trim())) throw new Error("O Plano de Correção não retornou os sete blocos obrigatórios.");
-  return sections.map(([label]) => `${label}\n${collected.get(label)!.join("\n")}`).join("\n\n");
+  return sections.map(([label]) => `## ${label}\n\n${collected.get(label)!.join("\n")}`).join("\n\n");
 }
 
 function normalizeHeading(line: string) {
-  return line.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^\s*(?:#{1,6}\s*)?(?:\d+[.)]\s*)?/, "").replace(/[*_:]/g, "").trim().toLowerCase();
+  return line.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+#+\s*$/, "").replace(/^\s*(?:#{1,6}\s*)?(?:\d+[.)]\s*)?/, "").replace(/[*_:]/g, "").trim().toLowerCase();
 }
 
 function isStoredPromptConfig(config: EditablePromptConfig | PromptConfig): config is PromptConfig {

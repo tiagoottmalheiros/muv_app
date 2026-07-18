@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "./app-provider";
 import { Brand, Button } from "./ui";
 import { KnowledgeManager } from "./knowledge-manager";
+import { RichResult } from "./rich-result";
 import {
   PROMPT_LABELS,
   type EditablePromptConfig,
@@ -325,6 +326,11 @@ export function PromptStudio() {
                       ? "Adicione aqui contexto, metodologia, premissas e referências que devem acompanhar todas as respostas."
                       : "Use instruções objetivas, formato de saída explícito e regras verificáveis. Os dados do aluno são adicionados separadamente pelo servidor."}
                   </p>
+                  {activeTab !== "agent" && activeTab !== "context" && (
+                    <p className="mt-3 rounded-xl border border-primary/15 bg-primary/[.04] px-4 py-3 text-xs leading-5 text-[#bfdbfe]">
+                      A apresentação em Markdown é aplicada automaticamente. Você pode alterar livremente o conteúdo e a estrutura; se este prompt pedir explicitamente JSON, código ou outro formato técnico, esse pedido será respeitado.
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-3 border-t border-white/8 bg-white/[.015] p-5 sm:flex-row sm:items-center sm:justify-between md:px-7">
                   <span className="text-muted text-xs">
@@ -519,8 +525,8 @@ function ResultCard({ title, result, highlight = false }: { title: string; resul
           <span>{result.outputTokens ?? 0} out</span>
         </div>
       </header>
-      <div className="max-h-[620px] overflow-y-auto p-5 text-sm leading-7 whitespace-pre-wrap text-[#dbeafe]">
-        {result.content}
+      <div className="max-h-[620px] overflow-y-auto p-4">
+        <RichResult compact content={result.content} />
       </div>
     </article>
   );
