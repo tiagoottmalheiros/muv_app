@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { EditablePromptConfig, PromptConfig, PromptStudioState } from "@/lib/prompt-config";
+import { normalizeLegacyProductTerms } from "@/lib/product-copy";
 import { getDefaultPromptConfig } from "@/lib/server/stage-prompts";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -79,6 +80,11 @@ function createInitialState(): PromptStudioState {
 
 function normalizeState(state: PromptStudioState): PromptStudioState {
   const fallback = getDefaultPromptConfig().contextPrompt;
-  const normalize = (config: PromptConfig): PromptConfig => ({ ...config, contextPrompt: config.contextPrompt ?? fallback });
+  const normalize = (config: PromptConfig): PromptConfig => ({
+    ...config,
+    agentInstructions: normalizeLegacyProductTerms(config.agentInstructions),
+    contextPrompt: normalizeLegacyProductTerms(config.contextPrompt ?? fallback),
+    stagePrompts: Object.fromEntries(Object.entries(config.stagePrompts).map(([key, value]) => [key, normalizeLegacyProductTerms(value)])) as PromptConfig["stagePrompts"],
+  });
   return { draft: normalize(state.draft), published: normalize(state.published), history: state.history.map(normalize) };
 }

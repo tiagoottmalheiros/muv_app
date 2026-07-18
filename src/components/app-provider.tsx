@@ -2,6 +2,7 @@
 
 import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { normalizeLegacyProductTerms } from "@/lib/product-copy";
 import { EMPTY_APP_DATA, type AppData } from "@/lib/types";
 
 const STORAGE_PREFIX = "central-muv-v3";
@@ -31,7 +32,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (storageKey) {
         try {
           const stored = localStorage.getItem(storageKey);
-          if (stored) initial = JSON.parse(stored) as AppData;
+          if (stored) initial = normalizePersistedContent(JSON.parse(stored) as AppData);
         } catch {
           localStorage.removeItem(storageKey);
         }
@@ -81,6 +82,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   return <AppContext.Provider value={{ data, ready, update, logout: () => { void signOut({ redirectUrl: "/" }); }, reset }}>{children}</AppContext.Provider>;
+}
+
+function normalizePersistedContent(data: AppData): AppData {
+  return {
+    ...data,
+    promptBase: { ...data.promptBase, generatedText: normalizeLegacyProductTerms(data.promptBase.generatedText) },
+    xray: { ...data.xray, generatedText: normalizeLegacyProductTerms(data.xray.generatedText) },
+    outputs: Object.fromEntries(Object.entries(data.outputs).map(([key, output]) => [key, output ? { ...output, title: normalizeLegacyProductTerms(output.title), content: normalizeLegacyProductTerms(output.content) } : output])) as AppData["outputs"],
+  };
 }
 
 export function useApp() {

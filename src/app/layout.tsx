@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "Central MUV", template: "%s | Central MUV" },
-  description: "Instalação guiada do primeiro Filtro Anti-Curiosos do seu negócio.",
+  description: "Em até 2 horas, construa seu primeiro Filtro Anti-Curiosos com IA para identificar dor, urgência e perfil antes do próximo passo comercial.",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
 };

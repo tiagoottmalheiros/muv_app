@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-O MUV Starter instala a primeira camada de filtro comercial do negócio. O objetivo não é gerar mais contatos indiscriminadamente, mas atrair, identificar e conduzir compradores reais antes que curiosos consumam tempo, verba e energia comercial.
+O MUV Starter é uma aplicação guiada para construir o primeiro Filtro Anti-Curiosos com IA. O objetivo não é gerar mais contatos indiscriminadamente, mas identificar dor, urgência e perfil antes que curiosos consumam tempo, verba e energia comercial.
 
 ## Princípios
 

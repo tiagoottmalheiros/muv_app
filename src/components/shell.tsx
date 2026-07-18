@@ -28,7 +28,7 @@ export function PrivateShell({ children }: { children: ReactNode }) {
   const previousLabel = matchedIndex > 0 ? journey[matchedIndex - 1].short : "Visão Geral";
 
   return <div className="min-h-screen bg-app">
-    <header className="sticky top-0 z-30 border-b border-white/8 bg-[#020617]/92 backdrop-blur-xl">
+    <header className="app-shell-header sticky top-0 z-30 border-b border-white/8 bg-[#020617]/92 backdrop-blur-xl">
       <div className="relative mx-auto flex h-16 max-w-[640px] items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-2">
           {previousHref && <Link href={previousHref} aria-label="Voltar para a etapa anterior" title="Etapa anterior" className="grid size-9 place-items-center rounded-lg border border-white/8 text-muted transition hover:border-primary/30 hover:bg-primary/5 hover:text-primary"><ArrowLeft size={17} /></Link>}
@@ -43,7 +43,7 @@ export function PrivateShell({ children }: { children: ReactNode }) {
       <div className="mx-auto max-w-[640px] px-4 pb-3 sm:px-6">
         <ProgressBar value={progress} />
         <div className="mt-2 flex items-center justify-between">
-          <span className="truncate text-[10px] text-muted">{current?.short ?? "Instalação guiada"}</span>
+          <span className="truncate text-[10px] text-muted">{current?.short ?? "Aplicação guiada"}</span>
           <span className="text-[10px] font-bold text-primary">{progress}% concluído</span>
         </div>
       </div>

@@ -7,7 +7,7 @@ export type Lesson = {
 
 export const lessons: Record<OutputKey, Lesson> = {
   step_1_diagnosis: {
-    key: "step_1_diagnosis", eyebrow: "Passo 1 de 4", title: "Raio-X Anti-Curiosos: Onde Seu Funil Está Vazando?", objective: "Transformar sua base e seu Raio-X em um diagnóstico claro e uma primeira ação.", central: "Mais lead não resolve lead ruim.", deliverable: "Raio-X do Funil Atual + Gargalo Principal", nextHref: "/central/passo-2-comprador-real", nextLabel: "Avançar para Comprador Real",
+    key: "step_1_diagnosis", eyebrow: "Aplicação 1 de 4", title: "Plano de Correção do Gargalo", objective: "Transformar sua base e seu Raio-X em um diagnóstico claro e um plano de ação para o principal gargalo.", central: "Mais lead não resolve lead ruim.", deliverable: "Plano de Correção do Gargalo", nextHref: "/central/passo-2-comprador-real", nextLabel: "Avançar para Comprador Real",
     concepts: [{ title: "Volume não corrige filtro", text: "Mais contatos amplificam um processo sem critério." }, { title: "Encontre o vazamento", text: "Descubra onde o curioso entra, avança ou perde intenção." }, { title: "Corrija primeiro", text: "Escolha uma ação simples para o gargalo principal." }],
   },
   step_2_buyer_map: {
@@ -19,7 +19,7 @@ export const lessons: Record<OutputKey, Lesson> = {
     concepts: [{ title: "Especificidade", text: "A pessoa certa precisa se reconhecer rapidamente." }, { title: "Frase anti-curioso", text: "Deixe claro quem não deve avançar." }, { title: "CTA de compromisso", text: "Peça uma decisão pequena, não apenas um clique." }],
   },
   step_4_triage_script: {
-    key: "step_4_triage_script", eyebrow: "Passo 4 de 4", title: "Triagem Lite: Como Parar de Tratar Curioso Como Oportunidade", objective: "Criar uma triagem humana antes de reunião, proposta ou atendimento comercial.", central: "Pergunte antes de explicar.", deliverable: "Script de Triagem Lite", nextHref: "/central/kit-final", nextLabel: "Montar meu Kit Final",
+    key: "step_4_triage_script", eyebrow: "Passo 4 de 4", title: "Triagem Lite: Como Parar de Tratar Curioso Como Oportunidade", objective: "Criar uma triagem humana antes de reunião, proposta ou atendimento comercial.", central: "Pergunte antes de explicar.", deliverable: "Script de Triagem Lite", nextHref: "/central/kit-final", nextLabel: "Assistir à aula final",
     concepts: [{ title: "Dor real", text: "O lead reconhece um problema concreto?" }, { title: "Próximo passo", text: "Só avance quando houver intenção suficiente." }, { title: "Resposta adequada", text: "Quente, morno, frio e curioso exigem conduções diferentes." }],
   },
 };

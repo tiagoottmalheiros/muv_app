@@ -44,5 +44,5 @@ export function generateXrayText(name: string, business: string, answers: XrayAn
   const score = answers.reduce((total, answer) => total + answer.score, 0);
   const result = getXrayResult(score);
   const bottleneck = getMainBottleneck(answers);
-  return `RESUMO DO RAIO-X\n\n${name}, o funil de ${business} foi classificado como ${result.name}, com ${score} de 36 pontos e nível de vazamento ${result.level.toLowerCase()}.\n\nO principal gargalo está em ${xrayLabels[bottleneck].toLowerCase()}. ${result.diagnosis}\n\nAção recomendada: ${bottlenecks[bottleneck].action}\n\n${result.impact}\n\nDiagnóstico registrado. Suas respostas serão cruzadas automaticamente com o Prompt Base nas próximas etapas.`;
+  return `RESUMO DO RAIO-X\n\n${name}, o funil de ${business} foi classificado como ${result.name}, com ${score} de 36 pontos e nível de vazamento ${result.level.toLowerCase()}.\n\nO principal gargalo está em ${xrayLabels[bottleneck].toLowerCase()}. ${result.diagnosis}\n\nAção recomendada: ${bottlenecks[bottleneck].action}\n\n${result.impact}\n\nDiagnóstico registrado. Suas respostas serão combinadas automaticamente com a Base Estratégica do Negócio nas próximas etapas.`;
 }

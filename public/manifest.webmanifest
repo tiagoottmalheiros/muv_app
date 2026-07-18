@@ -1,7 +1,7 @@
 {
   "name": "Central MUV",
   "short_name": "MUV",
-  "description": "Central de Instalação MUV",
+  "description": "Aplicação guiada para construir seu Filtro Anti-Curiosos com IA",
   "start_url": "/central",
   "display": "standalone",
   "background_color": "#020617",

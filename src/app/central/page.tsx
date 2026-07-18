@@ -13,9 +13,9 @@ export default function Dashboard() {
   return <div className="mx-auto max-w-2xl">
     <header className="mb-8 text-center">
       <p className="eyebrow">MUV Starter</p>
-      <h1 className="display-title mx-auto">Instale seu Filtro Anti-Curiosos</h1>
-      <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-muted">Siga as etapas na ordem. Cada etapa termina com um ativo salvo para o seu negócio.</p>
-      <Link href={next.href} className="button button-primary mt-6">{progress ? "Continuar de onde parei" : "Começar instalação"}<ArrowRight size={16} /></Link>
+      <h1 className="display-title mx-auto">Construa seu Filtro Anti-Curiosos com IA</h1>
+      <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-muted">Em até 2 horas, avance pelas aplicações guiadas para identificar dor, urgência e perfil antes do próximo passo comercial.</p>
+      <Link href={next.href} className="button button-primary mt-6">{progress ? "Continuar de onde parei" : "Começar aplicação"}<ArrowRight size={16} /></Link>
     </header>
 
     <section className="card p-3 sm:p-4">

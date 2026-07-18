@@ -2,7 +2,7 @@ import { z } from "zod";
 import { OUTPUT_KEYS, type OutputKey } from "./types";
 
 export const PROMPT_LABELS: Record<OutputKey, string> = {
-  step_1_diagnosis: "Passo 1 · Diagnóstico",
+  step_1_diagnosis: "Plano de Correção do Gargalo",
   step_2_buyer_map: "Passo 2 · Comprador real",
   step_3_filter_message: "Passo 3 · Anúncio-filtro",
   step_4_triage_script: "Passo 4 · Triagem",

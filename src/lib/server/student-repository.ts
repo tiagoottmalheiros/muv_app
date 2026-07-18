@@ -1,6 +1,8 @@
 import "server-only";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { isFinalStepCompleted } from "@/lib/journey";
+import { normalizeLegacyProductTerms } from "@/lib/product-copy";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { EMPTY_APP_DATA, type AppData, type OutputKey } from "@/lib/types";
 
@@ -32,8 +34,8 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
       output.output_key,
       {
         key: output.output_key as OutputKey,
-        title: output.title ?? "Entregável MUV",
-        content: output.content ?? "",
+        title: normalizeLegacyProductTerms(output.title ?? "Entregável MUV"),
+        content: normalizeLegacyProductTerms(output.content ?? ""),
         completed: output.status === "completed",
         updatedAt: output.updated_at,
       },
@@ -53,7 +55,7 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
     },
     promptBase: {
       answers: { ...(promptBase.data?.answers ?? EMPTY_APP_DATA.promptBase.answers), name: profile.name ?? "Aluno MUV", email: profile.primary_email ?? "" },
-      generatedText: promptBase.data?.generated_text ?? "",
+      generatedText: normalizeLegacyProductTerms(promptBase.data?.generated_text ?? ""),
       completed: promptBase.data?.status === "completed",
       currentStep: Number(progressMap.get("prompt-base")?.percent ?? 0),
       updatedAt: promptBase.data?.updated_at,
@@ -64,7 +66,7 @@ export async function loadDevelopmentStudentState(): Promise<AppData | null> {
       classification: xray.data?.classification ?? "",
       leakLevel: xray.data?.leak_level ?? "",
       bottleneck: xray.data?.main_bottleneck ?? "mensagem",
-      generatedText: xray.data?.generated_text ?? "",
+      generatedText: normalizeLegacyProductTerms(xray.data?.generated_text ?? ""),
       completed: xray.data?.status === "completed",
       currentStep: Number(progressMap.get("raio-x")?.percent ?? 0),
       updatedAt: xray.data?.updated_at,
@@ -248,7 +250,7 @@ function buildProgressRows(profileId: string, data: AppData, now: string) {
     ["step_2_buyer_map", data.outputs.step_2_buyer_map?.completed],
     ["step_3_filter_message", data.outputs.step_3_filter_message?.completed],
     ["step_4_triage_script", data.outputs.step_4_triage_script?.completed],
-    ["kit-final", data.kitReviewed],
+    ["kit-final", isFinalStepCompleted(data)],
   ] as const;
   return entries.map(([lessonKey, completed]) => ({
     profile_id: profileId,
