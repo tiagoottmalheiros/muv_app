@@ -23,7 +23,7 @@ export default function Dashboard() {
         <span className="text-muted">Sua jornada</span>
         <strong className="text-primary">{progress}% concluído</strong>
       </div>
-      <div className="grid gap-1 lg:grid-cols-2 lg:gap-2">{journey.map((step, index) => {
+      <div className="grid gap-1">{journey.map((step, index) => {
         const status = getStepStatus(data, step.key);
         const available = index === 0 || getStepStatus(data, journey[index - 1].key) === "completed" || status !== "not_started";
         return <Link href={available ? step.href : "#"} aria-disabled={!available} className={`flex items-center gap-4 rounded-xl px-3 py-4 transition ${available ? "hover:bg-white/[.035]" : "pointer-events-none opacity-40"}`} key={step.key}>
