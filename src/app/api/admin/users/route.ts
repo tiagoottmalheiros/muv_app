@@ -6,7 +6,10 @@ import { isValidTicket } from "@/lib/prompt-base";
 import { assertPromptAdmin, getBootstrapAdminIds, PromptAdminError } from "@/lib/server/prompt-admin";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
-const updateSchema = z.object({ userId: z.string().startsWith("user_"), isAdmin: z.boolean() });
+const updateSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("admin"), userId: z.string().startsWith("user_"), isAdmin: z.boolean() }),
+  z.object({ action: z.literal("access"), userId: z.string().startsWith("user_"), hasAccess: z.boolean() }),
+]);
 const createSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.email().transform((email) => email.trim().toLowerCase()),
@@ -37,6 +40,7 @@ export async function GET() {
           supabase.from("prompt_base_submissions").select("profile_id,status,answers").in("profile_id", ids),
           supabase.from("funnel_xray_submissions").select("profile_id,status").in("profile_id", ids),
           supabase.from("student_outputs").select("profile_id,output_key,status,version").in("profile_id", ids),
+          supabase.from("entitlements").select("profile_id,status,expires_at").in("profile_id", ids).eq("product_code", "muv_starter"),
         ])));
     const journeyError = journeyPages.flat().find((result) => result.error)?.error;
     if (journeyError) throw journeyError;
@@ -44,6 +48,7 @@ export async function GET() {
     const promptBases = journeyPages.flatMap((page) => page[1].data ?? []);
     const xrays = journeyPages.flatMap((page) => page[2].data ?? []);
     const outputs = journeyPages.flatMap((page) => page[3].data ?? []);
+    const entitlements = journeyPages.flatMap((page) => page[4].data ?? []);
 
     const profileByClerkId = new Map(profiles.map((profile) => [profile.clerk_user_id, profile.id]));
     const completedByProfile = new Map<string, Set<string>>();
@@ -59,6 +64,11 @@ export async function GET() {
       completedByProfile.set(profileId, completed);
     };
     const promptBaseProfiles = new Set<string>();
+    const activeAccessProfiles = new Set(
+      entitlements
+        .filter((entitlement) => entitlement.status === "active" && (!entitlement.expires_at || new Date(entitlement.expires_at) > new Date()))
+        .map((entitlement) => entitlement.profile_id),
+    );
     for (const row of promptBases) {
       const answers = typeof row.answers === "object" && row.answers ? row.answers as Record<string, unknown> : {};
       if (row.status !== "completed" || !isValidTicket(String(answers.ticket || ""))) continue;
@@ -81,6 +91,7 @@ export async function GET() {
           isBootstrap: bootstrapIds.includes(user.id),
           isCurrent: user.id === userId,
           hasProfile: Boolean(profileId),
+          hasAccess: Boolean(profileId && activeAccessProfiles.has(profileId)),
           progressPercentage: journey.reduce((total, step) => total + (completed?.has(step.key) && (step.key !== "kit-final" || requiredResultKeys.every((key) => completed.has(key))) ? step.weight : 0), 0),
           promptBaseAvailable: Boolean(profileId && promptBaseProfiles.has(profileId)),
         };
@@ -95,14 +106,19 @@ export async function PATCH(request: Request) {
   try {
     await assertPromptAdmin();
     const parsed = updateSchema.safeParse(await request.json());
-    if (!parsed.success) return NextResponse.json({ error: "Usuário ou função inválida." }, { status: 400 });
+    if (!parsed.success) return NextResponse.json({ error: "Usuário ou ação inválida." }, { status: 400 });
     const { userId: currentUserId } = await auth();
-    if (!parsed.data.isAdmin && parsed.data.userId === currentUserId) return NextResponse.json({ error: "Você não pode remover seu próprio acesso administrativo." }, { status: 409 });
-    if (!parsed.data.isAdmin && getBootstrapAdminIds().includes(parsed.data.userId)) return NextResponse.json({ error: "O administrador inicial não pode ser removido por esta tela." }, { status: 409 });
+    if (parsed.data.action === "admin") {
+      if (!parsed.data.isAdmin && parsed.data.userId === currentUserId) return NextResponse.json({ error: "Você não pode remover seu próprio acesso administrativo." }, { status: 409 });
+      if (!parsed.data.isAdmin && getBootstrapAdminIds().includes(parsed.data.userId)) return NextResponse.json({ error: "O administrador inicial não pode ser removido por esta tela." }, { status: 409 });
 
-    await (await clerkClient()).users.updateUserMetadata(parsed.data.userId, {
-      privateMetadata: { muvRole: parsed.data.isAdmin ? "admin" : null },
-    });
+      await (await clerkClient()).users.updateUserMetadata(parsed.data.userId, {
+        privateMetadata: { muvRole: parsed.data.isAdmin ? "admin" : null },
+      });
+    } else {
+      if (!parsed.data.hasAccess && parsed.data.userId === currentUserId) return NextResponse.json({ error: "Você não pode bloquear seu próprio acesso ao MUV Starter." }, { status: 409 });
+      await updateStudentAccess(parsed.data.userId, parsed.data.hasAccess);
+    }
     return NextResponse.json({ ok: true });
   } catch (error) {
     return handleError("Failed to update admin user", error);
@@ -175,11 +191,42 @@ function clerkErrorMessage(error: unknown) {
     const paramName = first?.meta?.paramName?.toLowerCase() || "";
     const details = `${first?.message || ""} ${first?.longMessage || ""}`.toLowerCase();
     if (paramName.includes("username") || code.startsWith("form_username") || details.includes("username")) return "Não foi possível gerar um identificador interno válido. Tente novamente.";
-    if (code === "form_identifier_exists" || (details.includes("email") && (details.includes("exist") || details.includes("already") || details.includes("taken")))) return "Este e-mail já está cadastrado.";
+    if (code === "form_identifier_exists" || (details.includes("email") && (details.includes("exist") || details.includes("already") || details.includes("taken")))) return "Este e-mail já está cadastrado. Encontre o usuário na lista e clique em Ativar acesso.";
     if (paramName.includes("password") || code.startsWith("form_password") || details.includes("password")) return "A senha informada não atende aos requisitos de segurança.";
     if (first?.longMessage || first?.message) return first.longMessage || first.message;
   }
   return error instanceof Error && error.message ? error.message : "Não foi possível criar o aluno.";
+}
+
+async function updateStudentAccess(userId: string, hasAccess: boolean) {
+  const clerk = await clerkClient();
+  const supabase = createSupabaseAdminClient();
+  const user = await clerk.users.getUser(userId);
+  const email = user.primaryEmailAddress?.emailAddress.trim().toLowerCase();
+  if (!email) throw new Error("O usuário não possui um e-mail principal válido.");
+
+  const now = new Date().toISOString();
+  const profile = await supabase.from("profiles").upsert({
+    clerk_user_id: user.id,
+    name: user.fullName || user.firstName || "Aluno MUV",
+    primary_email: email,
+    purchase_email: email,
+    avatar_url: user.imageUrl,
+    updated_at: now,
+  }, { onConflict: "clerk_user_id" }).select("id").single();
+  if (profile.error) throw profile.error;
+
+  const entitlement = await supabase.from("entitlements").upsert({
+    profile_id: profile.data.id,
+    product_code: "muv_starter",
+    source: "manual_admin",
+    purchase_email: email,
+    status: hasAccess ? "active" : "blocked",
+    purchased_at: hasAccess ? now : null,
+    expires_at: null,
+    updated_at: now,
+  }, { onConflict: "profile_id,product_code" });
+  if (entitlement.error) throw entitlement.error;
 }
 
 function chunk<T>(items: T[], size = 100) {

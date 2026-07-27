@@ -29,6 +29,7 @@ type AdminUser = {
   isBootstrap: boolean;
   isCurrent: boolean;
   hasProfile: boolean;
+  hasAccess: boolean;
   progressPercentage: number;
   promptBaseAvailable: boolean;
 };
@@ -40,6 +41,7 @@ export default function AdminPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState<string | null>(null);
+  const [accessWorkingId, setAccessWorkingId] = useState<string | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [resettingStudentId, setResettingStudentId] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
@@ -82,7 +84,7 @@ export default function AdminPage() {
       const response = await fetch("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, isAdmin: makeAdmin }),
+        body: JSON.stringify({ action: "admin", userId: user.id, isAdmin: makeAdmin }),
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(payload.error || "Não foi possível atualizar o administrador.");
@@ -91,6 +93,30 @@ export default function AdminPage() {
       setError(messageFrom(caught));
     } finally {
       setWorkingId(null);
+    }
+  }
+
+  async function changeAccess(user: AdminUser) {
+    const hasAccess = !user.hasAccess;
+    const action = hasAccess ? "ativar o acesso ao MUV Starter" : "bloquear o acesso ao MUV Starter";
+    if (!window.confirm(`Deseja ${action} para ${user.name}?`)) return;
+    setAccessWorkingId(user.id);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "access", userId: user.id, hasAccess }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Não foi possível atualizar o acesso do aluno.");
+      setNotice(`Acesso de ${user.name} ${hasAccess ? "ativado" : "bloqueado"} com sucesso.`);
+      await loadUsers();
+    } catch (caught) {
+      setError(messageFrom(caught));
+    } finally {
+      setAccessWorkingId(null);
     }
   }
 
@@ -332,15 +358,28 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
-                <div>
+                <div className="flex flex-col items-start gap-2">
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${user.isAdmin ? "bg-primary/10 text-primary" : "text-muted bg-white/5"}`}
                   >
                     {user.isAdmin ? <Crown size={13} /> : <Shield size={13} />}
                     {user.isBootstrap ? "Admin inicial" : user.isAdmin ? "Administrador" : "Aluno"}
                   </span>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${user.hasAccess ? "bg-success/10 text-success" : "bg-red-400/8 text-red-300"}`}>
+                    <KeyRound size={13} />
+                    {user.hasAccess ? "Acesso ativo" : "Sem acesso"}
+                  </span>
                 </div>
                 <div className="flex flex-col gap-2">
+                  <Button
+                    variant={user.hasAccess ? "ghost" : "secondary"}
+                    disabled={accessWorkingId === user.id || (user.isCurrent && user.hasAccess)}
+                    title={user.isCurrent && user.hasAccess ? "Você não pode bloquear seu próprio acesso" : undefined}
+                    onClick={() => void changeAccess(user)}
+                  >
+                    {accessWorkingId === user.id ? <LoaderCircle className="animate-spin" size={15} /> : user.hasAccess ? <ShieldMinus size={15} /> : <KeyRound size={15} />}
+                    {user.hasAccess ? "Bloquear acesso" : "Ativar acesso"}
+                  </Button>
                   <Button
                     variant={user.isAdmin ? "ghost" : "secondary"}
                     disabled={workingId === user.id || user.isBootstrap || (user.isCurrent && user.isAdmin)}
