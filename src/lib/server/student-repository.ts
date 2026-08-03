@@ -230,21 +230,21 @@ async function getOrCreateAuthenticatedProfile() {
 
 async function resolveStudentEntitlement(profile: { id: string; primary_email?: string | null }) {
   const supabase = createSupabaseAdminClient();
-  const direct = await supabase.from("entitlements").select("*").eq("profile_id", profile.id).eq("product_code", "muv_starter").maybeSingle();
-  if (direct.error) throw direct.error;
-  if (direct.data) return direct.data;
-
   const email = profile.primary_email?.trim().toLowerCase();
-  if (!email) return null;
-  const matching = await supabase.from("entitlements").select("*").eq("product_code", "muv_starter").ilike("purchase_email", email).eq("status", "active").limit(1).maybeSingle();
-  if (matching.error) throw matching.error;
-  if (!matching.data) return null;
+  if (!email) {
+    const direct = await supabase.from("entitlements").select("*").eq("profile_id", profile.id).eq("product_code", "muv_starter").maybeSingle();
+    if (direct.error) throw direct.error;
+    return direct.data;
+  }
 
-  const linked = await supabase.from("entitlements").update({ profile_id: profile.id, updated_at: new Date().toISOString() }).eq("id", matching.data.id).select("*").single();
-  if (linked.error) throw linked.error;
-  const profileUpdate = await supabase.from("profiles").update({ purchase_email: matching.data.purchase_email, updated_at: new Date().toISOString() }).eq("id", profile.id);
+  const claimed = await supabase.rpc("claim_student_entitlement", { target_profile_id: profile.id, target_email: email });
+  if (claimed.error) throw claimed.error;
+  if (!claimed.data) return null;
+  const entitlement = await supabase.from("entitlements").select("*").eq("id", claimed.data).single();
+  if (entitlement.error) throw entitlement.error;
+  const profileUpdate = await supabase.from("profiles").update({ purchase_email: entitlement.data.purchase_email, updated_at: new Date().toISOString() }).eq("id", profile.id);
   if (profileUpdate.error) throw profileUpdate.error;
-  return linked.data;
+  return entitlement.data;
 }
 
 function buildProgressRows(profileId: string, data: AppData, now: string) {
