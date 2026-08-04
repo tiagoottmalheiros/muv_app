@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CheckCircle2, Clock3, ShieldCheck } from "lucide-react";
 import { Brand } from "@/components/ui";
 import { getStripeClient, STRIPE_PRODUCT_CODE } from "@/lib/stripe/server";
@@ -6,6 +7,7 @@ import { getStripeClient, STRIPE_PRODUCT_CODE } from "@/lib/stripe/server";
 export const dynamic = "force-dynamic";
 
 export default async function CheckoutSuccessPage({ searchParams }: { searchParams: Promise<{ session_id?: string }> }) {
+  if (process.env.PAYMENT_PROVIDER !== "stripe") redirect("/sign-up");
   const { session_id: sessionId } = await searchParams;
   const session = sessionId ? await getStripeClient().checkout.sessions.retrieve(sessionId) : null;
   const validProduct = session?.metadata?.product_code === STRIPE_PRODUCT_CODE;

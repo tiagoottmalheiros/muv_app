@@ -1,9 +1,10 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { recordStripeEntitlement } from "@/lib/server/stripe-entitlements";
-import { getStripeClient, STRIPE_PRODUCT_CODE } from "@/lib/stripe/server";
+import { getStripeClient, isStripePaymentsEnabled, STRIPE_PRODUCT_CODE } from "@/lib/stripe/server";
 
 export async function POST(request: Request) {
+  if (!isStripePaymentsEnabled()) return NextResponse.json({ error: "Webhook Stripe desativado." }, { status: 404 });
   const signature = request.headers.get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!signature || !webhookSecret) return NextResponse.json({ error: "Webhook não configurado." }, { status: 400 });

@@ -24,3 +24,7 @@ export function getAppUrl() {
 }
 
 export const STRIPE_PRODUCT_CODE = "muv_starter";
+
+export function isStripePaymentsEnabled() {
+  return process.env.PAYMENT_PROVIDER === "stripe";
+}

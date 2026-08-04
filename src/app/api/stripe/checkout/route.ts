@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getAppUrl, getStripeClient, getStripePriceId, STRIPE_PRODUCT_CODE } from "@/lib/stripe/server";
+import { getAppUrl, getStripeClient, getStripePriceId, isStripePaymentsEnabled, STRIPE_PRODUCT_CODE } from "@/lib/stripe/server";
 
 export async function POST(request: Request) {
+  if (!isStripePaymentsEnabled()) return NextResponse.json({ error: "Checkout Stripe desativado." }, { status: 404 });
   try {
     const appUrl = getAppUrl();
     const requestOrigin = request.headers.get("origin");

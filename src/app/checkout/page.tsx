@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowLeft, Check, CreditCard, ShieldCheck, Sparkles } from "lucide-react";
 import Stripe from "stripe";
 import { Brand } from "@/components/ui";
@@ -7,6 +8,11 @@ import { getStripeClient, getStripePriceId } from "@/lib/stripe/server";
 export const dynamic = "force-dynamic";
 
 export default async function CheckoutPage({ searchParams }: { searchParams: Promise<{ cancelado?: string }> }) {
+  if (process.env.PAYMENT_PROVIDER !== "stripe") {
+    const eduzzCheckoutUrl = process.env.NEXT_PUBLIC_EDUZZ_CHECKOUT_URL;
+    if (eduzzCheckoutUrl) redirect(eduzzCheckoutUrl);
+    return <main className="bg-app grid min-h-screen place-items-center p-5"><section className="card w-full max-w-xl p-8 text-center"><div className="flex justify-center"><Brand /></div><p className="eyebrow mt-8">Checkout Eduzz</p><h1 className="text-3xl font-bold text-white">Link de pagamento em configuração</h1><p className="mx-auto mt-4 max-w-md leading-7 text-muted">O checkout da Eduzz será disponibilizado aqui assim que a URL da oferta for configurada.</p><Link href="/" className="button button-secondary mt-7 w-full"><ArrowLeft size={16} />Voltar para o início</Link></section></main>;
+  }
   const { cancelado } = await searchParams;
   const price = await getStripeClient().prices.retrieve(getStripePriceId(), { expand: ["product"] });
   const product = price.product as Stripe.Product;

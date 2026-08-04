@@ -88,6 +88,10 @@ O Raio-X foi portado de `Raio-x/src/PortableFeatureSection.tsx`. Foram mantidas 
 
 Os projetos originais não possuíam `package.json`; eram componentes/HTML autocontidos e enviavam resultados diretamente a webhooks públicos do Google Sheets. Esse envio foi removido da Central para evitar expor endpoints e duplicar persistência. Nenhum arquivo original foi alterado.
 
-## Eduzz e HighLevel
+## Eduzz, Stripe e HighLevel
+
+Eduzz é o checkout ativo por meio de `PAYMENT_PROVIDER=eduzz` e `NEXT_PUBLIC_EDUZZ_CHECKOUT_URL`. Até a implementação do webhook oficial, compras devem ser confirmadas e liberadas manualmente em `/admin`.
 
 Na próxima fase, crie `POST /api/webhooks/eduzz` com verificação de assinatura antes de interpretar o evento. Mantenha um adapter isolado para mapear o payload oficial, pois a estrutura não deve ser inventada. Eventos confirmados devem fazer upsert do entitlement; cancelamento e reembolso devem bloquear o acesso e registrar `activity_events`. HighLevel permanece apenas para comunicação e deve apontar seus botões para `/entrar`.
+
+A integração Stripe permanece no código, mas suas rotas retornam `404` enquanto `PAYMENT_PROVIDER` não for `stripe`. Isso preserva a estrutura para uma reativação futura sem manter chaves ou webhooks ativos em produção.
