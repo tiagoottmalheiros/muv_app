@@ -13,15 +13,17 @@ All purchase buttons point to `/checkout`, which redirects to the configured Edu
 
 ## Access automation
 
-Checkout redirection does not grant access by itself. Until the official Eduzz webhook is implemented, an administrator must activate the buyer in `/admin` after confirming payment.
+Eduzz sends signed events to `POST /api/webhooks/eduzz`. The endpoint validates `x-signature` as an HMAC SHA-256 of the raw request body before parsing the payload.
 
-The future webhook must:
+The active subscription filters product `2999407` and receives:
 
-1. Verify the official Eduzz signature before parsing the event.
-2. Store the external purchase ID and normalized purchase email.
-3. Activate `muv_starter` only after a confirmed payment.
-4. Block access after cancellation, refund, or chargeback.
-5. Process duplicate and out-of-order events idempotently.
-6. Record an audit event without storing the full webhook payload.
+- `myeduzz.invoice_paid`
+- `myeduzz.invoice_refunded`
+- `myeduzz.invoice_canceled`
+- `myeduzz.invoice_chargeback`
 
-Do not invent the webhook payload or signature algorithm. Implement them from the current official Eduzz documentation when credentials are available.
+An approved purchase creates an active `muv_starter` entitlement for the normalized purchase email. If no Clerk user or pending invitation exists, the buyer receives a 30-day invitation to create an account. On first login with the purchase email, the entitlement is claimed atomically by the Clerk profile.
+
+Refunds, cancellations, and chargebacks update the same entitlement. Event IDs are idempotent and timestamps prevent an older delivery from reverting a newer status. Only audit metadata is retained; the full webhook payload is not stored.
+
+Manual activation in `/admin` remains available as an operational fallback.
