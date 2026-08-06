@@ -27,3 +27,17 @@ An approved purchase creates an active `muv_starter` entitlement for the normali
 Refunds, cancellations, and chargebacks update the same entitlement. Event IDs are idempotent and timestamps prevent an older delivery from reverting a newer status. Only audit metadata is retained; the full webhook payload is not stored.
 
 Manual activation in `/admin` remains available as an operational fallback.
+
+## Custom delivery
+
+The product can use Eduzz's `Customizado` delivery instead of a downloadable instruction file. Configure it with:
+
+```text
+https://your-domain.example/api/eduzz/custom-delivery
+```
+
+The endpoint accepts Eduzz's `create` and `remove` operations, validates `fields.edz_cli_origin_secret` against `EDUZZ_ORIGIN_KEY`, filters `EDUZZ_PRODUCT_ID`, and converges on the same idempotent entitlement flow used by signed webhooks. It accepts JSON, URL-encoded forms, and multipart forms because the legacy custom-delivery specification does not guarantee one content type.
+
+The URL validation probe returns `200` without changing access. An actual delivery only succeeds after the Origin Key, invoice, product, and operation are validated. Do not configure `/entrar` as the custom-delivery URL; that is a buyer-facing page and does not process purchase data.
+
+The signed webhook remains the payment source of truth. Custom delivery is a compatible product-delivery channel and operational fallback. Configure a separate thank-you page when a buyer-facing redirect is needed.

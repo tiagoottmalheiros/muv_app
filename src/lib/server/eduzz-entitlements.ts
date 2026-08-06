@@ -16,6 +16,17 @@ export async function hasKnownEduzzPurchase(externalPurchaseId: string) {
   return Boolean(result.data);
 }
 
+export async function getKnownEduzzPurchaseStatus(externalPurchaseId: string) {
+  const result = await createSupabaseAdminClient()
+    .from("entitlements")
+    .select("status")
+    .eq("external_purchase_id", externalPurchaseId)
+    .eq("source", "eduzz")
+    .maybeSingle();
+  if (result.error) throw result.error;
+  return result.data?.status ?? null;
+}
+
 export async function recordEduzzEntitlement(input: {
   eventId: string;
   eventType: string;
