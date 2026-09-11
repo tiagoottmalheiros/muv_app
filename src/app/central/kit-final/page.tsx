@@ -8,13 +8,13 @@ import { RichResult } from "@/components/rich-result";
 import { Button, CopyButton, DownloadButton, PageHeader, VideoLesson } from "@/components/ui";
 import { areRequiredResultsComplete } from "@/lib/journey";
 import type { OutputKey } from "@/lib/types";
+import { pandaVideoUrls } from "@/lib/videos";
 
 export default function KitPage() {
   const { data, update } = useApp();
   const date = process.env.NEXT_PUBLIC_IMMERSION_DATE || "Data a confirmar";
   const time = process.env.NEXT_PUBLIC_IMMERSION_TIME || "Horário a confirmar";
   const room = process.env.NEXT_PUBLIC_IMMERSION_URL;
-  const videoUrl = process.env.NEXT_PUBLIC_IMMERSION_VIDEO_URL;
   const sections = [
     { title: "Base Estratégica", content: data.promptBase.generatedText, complete: data.promptBase.completed, edit: "/central/prompt-base" },
     { title: "Raio-X do Funil", content: data.xray.generatedText, complete: data.xray.completed, edit: "/central/raio-x" },
@@ -40,7 +40,7 @@ export default function KitPage() {
   return <>
     <div className="mx-auto max-w-6xl space-y-5 no-print">
       <PageHeader eyebrow="Etapa final" title="Do filtro ao sistema comercial" description="Assista à aula final, garanta sua vaga na Imersão e acesse todos os resultados construídos durante a aplicação." />
-      <VideoLesson title="Do primeiro filtro ao sistema comercial" videoUrl={videoUrl} />
+      <VideoLesson title="Do primeiro filtro ao sistema comercial" videoUrl={pandaVideoUrls["kit-final"]} />
       <section className="card overflow-hidden border-gold/20 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,.09),transparent_42%)] p-6 sm:p-8">
         <p className="eyebrow">Imersão Do Clique ao Contrato em 48h</p>
         <h2 className="text-2xl font-bold text-white">Garanta sua vaga e transforme seus ativos em um sistema comercial conectado.</h2>

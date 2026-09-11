@@ -5,6 +5,7 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/app-provider";
 import { Button, PageHeader, VideoLesson } from "@/components/ui";
+import { pandaVideoUrls } from "@/lib/videos";
 
 export default function StartPage() {
   const { data, update } = useApp();
@@ -15,7 +16,7 @@ export default function StartPage() {
   return <>
     <PageHeader eyebrow="Etapa 1 · Preparação" title="Comece por aqui" description="Em até 2 horas, construa seu primeiro Filtro Anti-Curiosos com IA para identificar quem tem dor, urgência e perfil antes de avançar para sua agenda, proposta ou time comercial." />
     <div className="mx-auto max-w-6xl space-y-5">
-      <VideoLesson title="Boas-vindas: Comece Aqui" />
+      <VideoLesson title="Boas-vindas: Comece Aqui" videoUrl={pandaVideoUrls["comece-aqui"]} />
       <section className="card text-center sm:p-7">
         <blockquote className="text-xl font-semibold leading-8 text-white">“Você entrou em uma aplicação guiada para construir seu primeiro Filtro Anti-Curiosos com IA.”</blockquote>
         <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-muted">Suas respostas ficam acumuladas na Central. Cada etapa utiliza automaticamente o contexto construído anteriormente.</p>

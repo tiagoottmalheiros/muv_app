@@ -8,6 +8,7 @@ import { AutoSaveStatus, Button, PageHeader, VideoLesson } from "./ui";
 import { RichResult } from "./rich-result";
 import { lessons } from "@/lib/lessons";
 import type { OutputKey } from "@/lib/types";
+import { pandaVideoUrls } from "@/lib/videos";
 
 export function LessonPage({ lessonKey }: { lessonKey: OutputKey }) {
   const lesson = lessons[lessonKey];
@@ -63,7 +64,7 @@ export function LessonPage({ lessonKey }: { lessonKey: OutputKey }) {
   return <>
     <PageHeader eyebrow={lesson.eyebrow} title={lesson.title} description={lesson.objective} />
     <div className="space-y-5">
-      <div className="mx-auto w-full max-w-6xl"><VideoLesson title={lesson.title} /></div>
+      <div className="mx-auto w-full max-w-6xl"><VideoLesson title={lesson.title} videoUrl={pandaVideoUrls[lessonKey]} /></div>
 
       {!result && <section className="card mx-auto w-full max-w-5xl sm:p-7">
         <div className="text-center"><div className="mx-auto grid size-12 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary"><Sparkles size={21} /></div><p className="eyebrow mt-5">Aplicação automática</p><h2 className="text-xl font-semibold text-white">Gerar {lesson.deliverable}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted">A Central cruza suas respostas e os resultados anteriores para construir este ativo de forma personalizada.</p></div>
