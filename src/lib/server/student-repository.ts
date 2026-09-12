@@ -7,9 +7,11 @@ import { normalizeLegacyProductTerms } from "@/lib/product-copy";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { EMPTY_APP_DATA, type AppData, type OutputKey } from "@/lib/types";
 import { generateXrayText } from "@/lib/xray";
+import { loadAiRuntimeSettings } from "@/lib/server/ai-runtime-settings";
 
 export class StudentAccessError extends Error {}
 export class StudentStateResetError extends Error {}
+export class GenerationLimitError extends Error {}
 
 export async function hasAuthenticatedStudentAccess() {
   const profile = await getOrCreateAuthenticatedProfile();
@@ -19,6 +21,27 @@ export async function hasAuthenticatedStudentAccess() {
 
 export async function assertAuthenticatedStudentAccess() {
   if (!await hasAuthenticatedStudentAccess()) throw new StudentAccessError("Não encontramos um acesso ativo para o e-mail desta conta.");
+}
+
+export async function assertGenerationWithinLimits() {
+  const [profile, settings] = await Promise.all([getOrCreateAuthenticatedProfile(), loadAiRuntimeSettings()]);
+  const supabase = createSupabaseAdminClient();
+  const dayStart = new Date();
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const [countResult, lastResult] = await Promise.all([
+    supabase.from("ai_generations").select("id", { count: "exact", head: true }).eq("profile_id", profile.id).gte("created_at", dayStart.toISOString()),
+    supabase.from("ai_generations").select("created_at").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (countResult.error) throw countResult.error;
+  if (lastResult.error) throw lastResult.error;
+  if ((countResult.count ?? 0) >= settings.dailyGenerationLimit)
+    throw new GenerationLimitError(`Você atingiu o limite diário de ${settings.dailyGenerationLimit} gerações.`);
+
+  const lastAt = lastResult.data?.created_at ? new Date(lastResult.data.created_at).getTime() : 0;
+  const remainingSeconds = Math.ceil((settings.cooldownSeconds * 1000 - (Date.now() - lastAt)) / 1000);
+  if (remainingSeconds > 0)
+    throw new GenerationLimitError(`Aguarde ${remainingSeconds} segundos antes de gerar novamente.`);
+  return settings;
 }
 
 export async function loadDevelopmentStudentState(): Promise<AppData | null> {

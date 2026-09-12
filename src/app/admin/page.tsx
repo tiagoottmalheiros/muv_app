@@ -13,6 +13,7 @@ import {
   Shield,
   ShieldMinus,
   Sparkles,
+  SlidersHorizontal,
   UserPlus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -224,6 +225,10 @@ export default function AdminPage() {
           <Link href="/admin/prompts" className="button button-secondary">
             <Sparkles size={16} />
             Prompts
+          </Link>
+          <Link href="/admin/ia" className="button button-secondary">
+            <SlidersHorizontal size={16} />
+            IA
           </Link>
           <Link href="/central" className="button button-ghost">
             Central

@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { generationRequestSchema, getDevelopmentContext } from "@/lib/server/student-context";
-import { assertAuthenticatedStudentAccess, loadDevelopmentStudentState, recordDevelopmentGeneration, StudentAccessError } from "@/lib/server/student-repository";
+import { GenerationQualityError, validateGeneratedContent } from "@/lib/ai-runtime-settings";
+import { generationRequestSchema, getDevelopmentContext, type GenerationRequest } from "@/lib/server/student-context";
+import { assertAuthenticatedStudentAccess, assertGenerationWithinLimits, GenerationLimitError, loadDevelopmentStudentState, recordDevelopmentGeneration, StudentAccessError } from "@/lib/server/student-repository";
 import { generateWithMuvAgent } from "@/lib/openai/agent";
 
 export async function POST(request: Request) {
+  let lessonKey: GenerationRequest["lessonKey"] | undefined;
+  let generationAttempted = false;
+  let generationRecorded = false;
   try {
     await assertAuthenticatedStudentAccess();
+    const runtimeSettings = process.env.SUPABASE_SERVICE_ROLE_KEY ? await assertGenerationWithinLimits() : null;
     const parsed = generationRequestSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Contexto inválido para processamento." }, { status: 400 });
 
-    const { lessonKey } = parsed.data;
+    lessonKey = parsed.data.lessonKey;
     const storedState = process.env.SUPABASE_SERVICE_ROLE_KEY ? await loadDevelopmentStudentState() : null;
     if (!storedState && !parsed.data.context) return NextResponse.json({ error: "Contexto do aluno não encontrado." }, { status: 409 });
     const context = storedState
@@ -27,9 +32,22 @@ export async function POST(request: Request) {
       : getDevelopmentContext(parsed.data.context!);
     const apiKey = process.env.OPENAI_API_KEY;
 
-    if (!apiKey) return NextResponse.json({ content: buildDevelopmentResult(lessonKey, context), mode: "demo" });
+    if (!apiKey) {
+      generationAttempted = true;
+      const content = buildDevelopmentResult(lessonKey, context);
+      if (runtimeSettings) validateGeneratedContent(content, runtimeSettings);
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        await recordDevelopmentGeneration({ outputKey: lessonKey, model: "demo", status: "completed" });
+        generationRecorded = true;
+      }
+      return NextResponse.json({ content, mode: "demo" });
+    }
 
+    generationAttempted = true;
     const result = await generateWithMuvAgent(lessonKey, context);
+    if (runtimeSettings?.requireKnowledgeBase && !result.usedKnowledgeBase)
+      throw new GenerationQualityError("A base de conhecimento é obrigatória para gerar esta resposta.");
+    if (runtimeSettings) validateGeneratedContent(result.content, runtimeSettings);
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       await recordDevelopmentGeneration({
         outputKey: lessonKey,
@@ -41,11 +59,26 @@ export async function POST(request: Request) {
         outputTokens: result.outputTokens,
         durationMs: result.durationMs,
       });
+      generationRecorded = true;
     }
     return NextResponse.json({ content: result.content, mode: "openai", usedKnowledgeBase: result.usedKnowledgeBase });
   } catch (error) {
     console.error("Step generation error", error);
+    if (generationAttempted && !generationRecorded && lessonKey && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        await recordDevelopmentGeneration({
+          outputKey: lessonKey,
+          model: process.env.OPENAI_MODEL || "unknown",
+          status: "failed",
+          errorMessage: error instanceof Error ? error.message.slice(0, 500) : "Unknown generation error",
+        });
+      } catch (recordError) {
+        console.error("Failed to record generation failure", recordError);
+      }
+    }
     if (error instanceof StudentAccessError) return NextResponse.json({ error: error.message }, { status: 403 });
+    if (error instanceof GenerationLimitError) return NextResponse.json({ error: error.message }, { status: 429 });
+    if (error instanceof GenerationQualityError) return NextResponse.json({ error: "A resposta não passou pelos critérios de qualidade. Tente novamente." }, { status: 422 });
     return NextResponse.json({ error: "Erro inesperado ao processar a etapa." }, { status: 500 });
   }
 }
