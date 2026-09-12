@@ -1,10 +1,11 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { AppProvider } from "@/components/app-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Central MUV", template: "%s | Central MUV" },
+  title: { default: "APP MUV", template: "%s | APP MUV" },
   description: "Em até 2 horas, construa seu primeiro Filtro Anti-Curiosos com IA para identificar dor, urgência e perfil antes do próximo passo comercial.",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
@@ -23,11 +24,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="h-full antialiased">
-      <body className="min-h-full">
-        <ClerkProvider>
-          <AppProvider>{children}</AppProvider>
-        </ClerkProvider>
-      </body>
+        <body className="min-h-full">
+          <ClerkProvider appearance={{ options: { logoImageUrl: "/logo-muv-email.png" } }}>
+            <AppProvider>{children}</AppProvider>
+          </ClerkProvider>
+          <Script src="/meta-events.js" strategy="afterInteractive" />
+        </body>
     </html>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { Check, Clipboard, Download, LoaderCircle, Play, Save } from "lucide-react";
+import Image from "next/image";
 import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
-  return <div className="flex items-center gap-3"><div className="grid size-9 place-items-center rounded-lg border border-primary/40 bg-primary/10 text-[11px] font-black tracking-[.12em] text-primary">MUV</div>{!compact && <div><strong className="block text-sm tracking-[.2em] text-white">MUV</strong><span className="text-xs text-muted">Aplicação guiada</span></div>}</div>;
+  return <div className="flex items-center gap-3"><div className="grid size-9 place-items-center overflow-hidden rounded-lg border border-primary/40 bg-black p-1.5"><Image src="/logo-muv-email.png" alt="MUV" width={72} height={20} priority /></div>{!compact && <div><strong className="block text-sm tracking-[.16em] text-white">APP MUV</strong><span className="text-xs text-muted">Aplicação guiada</span></div>}</div>;
 }
 
 export function Button({ children, variant = "primary", className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" }) {

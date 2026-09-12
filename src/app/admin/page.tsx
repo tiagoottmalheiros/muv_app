@@ -46,7 +46,7 @@ export default function AdminPage() {
   const [resettingStudentId, setResettingStudentId] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [student, setStudent] = useState({ name: "", email: "", password: "" });
+  const [studentEmail, setStudentEmail] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -129,12 +129,14 @@ export default function AdminPage() {
       const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(student),
+        body: JSON.stringify({ email: studentEmail }),
       });
-      const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json()) as { error?: string; status?: string };
       if (!response.ok) throw new Error(payload.error || "Não foi possível criar o aluno.");
-      setNotice(`Aluno ${student.email} criado com acesso ativo.`);
-      setStudent({ name: "", email: "", password: "" });
+      setNotice(payload.status === "existing_user"
+        ? `Acesso de ${studentEmail} ativado com sucesso.`
+        : `Acesso liberado para ${studentEmail}. O convite seguro está disponível no e-mail.`);
+      setStudentEmail("");
       await loadUsers();
     } catch (caught) {
       setError(messageFrom(caught));
@@ -254,22 +256,10 @@ export default function AdminPage() {
             </div>
             <div>
               <h2 className="font-semibold text-white">Adicionar novo aluno</h2>
-              <p className="text-muted text-xs">O aluno será criado com acesso ativo, sem permissão administrativa.</p>
+              <p className="text-muted text-xs">O aluno receberá um convite para confirmar o e-mail e criar a própria senha.</p>
             </div>
           </div>
-          <form className="mt-5 grid gap-4 md:grid-cols-3" onSubmit={(event) => void createStudent(event)}>
-            <label className="text-muted text-xs font-bold">
-              Nome completo
-              <input
-                className="field mt-2"
-                required
-                minLength={2}
-                maxLength={120}
-                value={student.name}
-                onChange={(event) => setStudent({ ...student, name: event.target.value })}
-                placeholder="Nome do aluno"
-              />
-            </label>
+          <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={(event) => void createStudent(event)}>
             <label className="text-muted text-xs font-bold">
               E-mail
               <div className="relative mt-2">
@@ -278,34 +268,18 @@ export default function AdminPage() {
                   className="field pl-9"
                   type="email"
                   required
-                  value={student.email}
-                  onChange={(event) => setStudent({ ...student, email: event.target.value })}
+                  value={studentEmail}
+                  onChange={(event) => setStudentEmail(event.target.value)}
                   placeholder="aluno@email.com"
                 />
               </div>
             </label>
-            <label className="text-muted text-xs font-bold">
-              Senha inicial
-              <div className="relative mt-2">
-                <KeyRound className="text-muted absolute top-3.5 left-3" size={15} />
-                <input
-                  className="field pl-9"
-                  type="password"
-                  required
-                  minLength={8}
-                  maxLength={72}
-                  autoComplete="new-password"
-                  value={student.password}
-                  onChange={(event) => setStudent({ ...student, password: event.target.value })}
-                  placeholder="Mínimo de 8 caracteres"
-                />
-              </div>
-            </label>
-            <div className="md:col-span-3">
+            <div className="md:col-span-2">
               <Button disabled={creating} type="submit">
                 {creating ? <LoaderCircle className="animate-spin" size={16} /> : <UserPlus size={16} />}
-                {creating ? "Criando aluno..." : "Criar aluno e liberar acesso"}
+                {creating ? "Enviando convite..." : "Liberar acesso e convidar"}
               </Button>
+              <p className="text-muted mt-2 text-xs">O acesso aparecerá na lista depois que o aluno aceitar o convite e criar a conta.</p>
             </div>
           </form>
         </section>

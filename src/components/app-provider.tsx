@@ -2,7 +2,7 @@
 
 import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { getPromptCurrentStep, isValidTicket } from "@/lib/prompt-base";
 import { normalizeLegacyProductTerms } from "@/lib/product-copy";
 import { EMPTY_APP_DATA, type AppData } from "@/lib/types";
@@ -23,6 +23,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const remoteAttempted = useRef(false);
   const remoteReady = useRef(false);
   const storageKey = userId ? `${STORAGE_PREFIX}:${userId}` : null;
+  const markAccessRevoked = useEffectEvent(() => {
+    remoteReady.current = false;
+    if (storageKey) localStorage.removeItem(storageKey);
+    setData({ ...EMPTY_APP_DATA, authenticated: true, entitlement: "blocked", user: clerkUser(EMPTY_APP_DATA, user) });
+    void signOut({ redirectUrl: "/acesso-nao-encontrado" });
+  });
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -62,7 +68,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!ready || !isSignedIn || remoteAttempted.current) return;
     remoteAttempted.current = true;
-    void fetch("/api/student/state").then(async (response) => {
+    void fetch("/api/student/state", { cache: "no-store" }).then(async (response) => {
+      if (isAccessDeniedResponse(response)) {
+        markAccessRevoked();
+        return;
+      }
       if (!response.ok) throw new Error("Supabase indisponível");
       const payload = await response.json() as { data: AppData | null };
       remoteReady.current = true;
@@ -72,6 +82,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
       remoteReady.current = false;
     });
   }, [data, isSignedIn, ready, user]);
+
+  useEffect(() => {
+    if (!ready || !isSignedIn || !pathname.startsWith("/central")) return;
+    let requestInFlight = false;
+    const revalidateAccess = async () => {
+      if (requestInFlight) return;
+      requestInFlight = true;
+      try {
+        const response = await fetch("/api/student/state", { cache: "no-store" });
+        if (isAccessDeniedResponse(response)) markAccessRevoked();
+      } finally {
+        requestInFlight = false;
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void revalidateAccess();
+    };
+    const onPageShow = () => { void revalidateAccess(); };
+
+    window.addEventListener("focus", onPageShow);
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    const interval = window.setInterval(revalidateAccess, 30_000);
+    return () => {
+      window.removeEventListener("focus", onPageShow);
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearInterval(interval);
+    };
+  }, [isSignedIn, pathname, ready]);
 
   useEffect(() => {
     if (!ready || !isSignedIn || !remoteReady.current) return;
@@ -129,4 +169,8 @@ function clerkUser(current: AppData, user: ReturnType<typeof useUser>["user"]): 
     purchaseEmail: current.user.purchaseEmail || email,
     avatarUrl: user.imageUrl,
   };
+}
+
+function isAccessDeniedResponse(response: Response) {
+  return response.status === 401 || response.status === 403 || response.status === 404;
 }

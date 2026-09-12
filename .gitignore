@@ -43,3 +43,7 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# local analysis and exported artifacts
+/graphify-out/
+/Resumo-Central-MUV.pdf

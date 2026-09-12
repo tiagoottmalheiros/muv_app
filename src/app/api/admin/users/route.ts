@@ -4,6 +4,7 @@ import { z } from "zod";
 import { journey, requiredResultKeys } from "@/lib/journey";
 import { isValidTicket } from "@/lib/prompt-base";
 import { assertPromptAdmin, getBootstrapAdminIds, PromptAdminError } from "@/lib/server/prompt-admin";
+import { inviteMuvStudent } from "@/lib/server/eduzz-entitlements";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 const updateSchema = z.discriminatedUnion("action", [
@@ -11,9 +12,7 @@ const updateSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("access"), userId: z.string().startsWith("user_"), hasAccess: z.boolean() }),
 ]);
 const createSchema = z.object({
-  name: z.string().trim().min(2).max(120),
   email: z.email().transform((email) => email.trim().toLowerCase()),
-  password: z.string().min(8).max(72),
 });
 
 export async function GET() {
@@ -126,55 +125,38 @@ export async function PATCH(request: Request) {
 }
 
 export async function POST(request: Request) {
-  let createdUserId: string | undefined;
-  let createdProfileId: string | undefined;
   try {
     await assertPromptAdmin();
     const parsed = createSchema.safeParse(await request.json());
-    if (!parsed.success) return NextResponse.json({ error: "Informe nome, e-mail válido e uma senha com pelo menos 8 caracteres." }, { status: 400 });
+    if (!parsed.success) return NextResponse.json({ error: "Informe um e-mail válido." }, { status: 400 });
 
-    const [firstName, ...lastNameParts] = parsed.data.name.split(/\s+/);
     const clerk = await clerkClient();
-    const user = await clerk.users.createUser({
-      emailAddress: [parsed.data.email],
-      password: parsed.data.password,
-      firstName,
-      lastName: lastNameParts.join(" ") || undefined,
-      privateMetadata: { muvRole: "student" },
-    });
-    createdUserId = user.id;
+    const users = await clerk.users.getUserList({ emailAddress: [parsed.data.email], limit: 1 });
+    if (users.totalCount > 0) {
+      await updateStudentAccess(users.data[0].id, true);
+      return NextResponse.json({ ok: true, status: "existing_user" });
+    }
 
     const supabase = createSupabaseAdminClient();
-    const profile = await supabase.from("profiles").upsert({
-      clerk_user_id: user.id,
-      name: parsed.data.name,
-      primary_email: parsed.data.email,
-      purchase_email: parsed.data.email,
-      avatar_url: user.imageUrl,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "clerk_user_id" }).select("id").single();
-    if (profile.error) throw profile.error;
-    createdProfileId = profile.data.id;
-
     const now = new Date().toISOString();
-    const entitlement = await supabase.from("entitlements").upsert({
-      profile_id: profile.data.id,
-      product_code: "muv_starter",
-      source: "manual_admin",
-      purchase_email: parsed.data.email,
-      status: "active",
-      purchased_at: now,
-      updated_at: now,
-    }, { onConflict: "profile_id,product_code" });
+    const pending = await supabase.from("entitlements").select("id")
+      .is("profile_id", null)
+      .eq("product_code", "muv_starter")
+      .eq("source", "manual_admin")
+      .eq("purchase_email", parsed.data.email)
+      .limit(1)
+      .maybeSingle();
+    if (pending.error) throw pending.error;
+    const entitlement = pending.data
+      ? await supabase.from("entitlements").update({ status: "active", purchased_at: now, expires_at: null, updated_at: now }).eq("id", pending.data.id)
+      : await supabase.from("entitlements").insert({ profile_id: null, product_code: "muv_starter", source: "manual_admin", purchase_email: parsed.data.email, status: "active", purchased_at: now, updated_at: now });
     if (entitlement.error) throw entitlement.error;
-    return NextResponse.json({ ok: true, userId: user.id }, { status: 201 });
+    const invitation = await inviteMuvStudent(parsed.data.email);
+    return NextResponse.json({ ok: true, status: invitation }, { status: 201 });
   } catch (error) {
-    console.error("Failed to create student", error);
-    const clerk = await clerkClient();
-    if (createdUserId) await clerk.users.deleteUser(createdUserId).catch(() => undefined);
-    if (createdProfileId) await createSupabaseAdminClient().from("profiles").delete().eq("id", createdProfileId);
+    console.error("Failed to invite student", error);
     if (error instanceof PromptAdminError) return NextResponse.json({ error: error.message }, { status: error.status });
-    return NextResponse.json({ error: clerkErrorMessage(error) }, { status: 409 });
+    return NextResponse.json({ error: "Não foi possível liberar e enviar o convite ao aluno." }, { status: 409 });
   }
 }
 
@@ -182,20 +164,6 @@ function handleError(context: string, error: unknown) {
   console.error(context, error);
   const status = error instanceof PromptAdminError ? error.status : 500;
   return NextResponse.json({ error: error instanceof PromptAdminError ? error.message : "Não foi possível atualizar os administradores." }, { status });
-}
-
-function clerkErrorMessage(error: unknown) {
-  if (typeof error === "object" && error && "errors" in error && Array.isArray(error.errors)) {
-    const first = error.errors[0] as { code?: string; longMessage?: string; message?: string; meta?: { paramName?: string } } | undefined;
-    const code = first?.code?.toLowerCase() || "";
-    const paramName = first?.meta?.paramName?.toLowerCase() || "";
-    const details = `${first?.message || ""} ${first?.longMessage || ""}`.toLowerCase();
-    if (paramName.includes("username") || code.startsWith("form_username") || details.includes("username")) return "Não foi possível gerar um identificador interno válido. Tente novamente.";
-    if (code === "form_identifier_exists" || (details.includes("email") && (details.includes("exist") || details.includes("already") || details.includes("taken")))) return "Este e-mail já está cadastrado. Encontre o usuário na lista e clique em Ativar acesso.";
-    if (paramName.includes("password") || code.startsWith("form_password") || details.includes("password")) return "A senha informada não atende aos requisitos de segurança.";
-    if (first?.longMessage || first?.message) return first.longMessage || first.message;
-  }
-  return error instanceof Error && error.message ? error.message : "Não foi possível criar o aluno.";
 }
 
 async function updateStudentAccess(userId: string, hasAccess: boolean) {
@@ -216,16 +184,23 @@ async function updateStudentAccess(userId: string, hasAccess: boolean) {
   }, { onConflict: "clerk_user_id" }).select("id").single();
   if (profile.error) throw profile.error;
 
-  const entitlement = await supabase.from("entitlements").upsert({
-    profile_id: profile.data.id,
-    product_code: "muv_starter",
-    source: "manual_admin",
-    purchase_email: email,
-    status: hasAccess ? "active" : "blocked",
-    purchased_at: hasAccess ? now : null,
-    expires_at: null,
-    updated_at: now,
-  }, { onConflict: "profile_id,product_code" });
+  const currentEntitlement = await supabase.from("entitlements").select("id")
+    .eq("profile_id", profile.data.id)
+    .eq("product_code", "muv_starter")
+    .maybeSingle();
+  if (currentEntitlement.error) throw currentEntitlement.error;
+  const entitlement = currentEntitlement.data
+    ? await supabase.from("entitlements").update({ status: hasAccess ? "active" : "blocked", expires_at: null, updated_at: now }).eq("id", currentEntitlement.data.id)
+    : await supabase.from("entitlements").insert({
+      profile_id: profile.data.id,
+      product_code: "muv_starter",
+      source: "manual_admin",
+      purchase_email: email,
+      status: hasAccess ? "active" : "blocked",
+      purchased_at: hasAccess ? now : null,
+      expires_at: null,
+      updated_at: now,
+    });
   if (entitlement.error) throw entitlement.error;
 }
 

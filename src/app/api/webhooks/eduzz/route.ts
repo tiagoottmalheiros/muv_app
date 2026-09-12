@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { hasKnownEduzzPurchase, inviteEduzzBuyer, recordEduzzEntitlement } from "@/lib/server/eduzz-entitlements";
+import { getEduzzPurchaseEmail, hasKnownEduzzPurchase, inviteEduzzBuyer, recordEduzzEntitlement, revokeEduzzBuyerSessions } from "@/lib/server/eduzz-entitlements";
+import { markEduzzCheckoutPaidBySale } from "@/lib/server/eduzz-checkout";
 
 const supportedEvents = {
   "myeduzz.invoice_paid": "active",
@@ -21,6 +22,7 @@ const invoiceSchema = z.object({
   id: identifierSchema,
   buyer: z.object({ email: z.email() }).passthrough().optional(),
   items: z.array(z.object({ productId: identifierSchema }).passthrough()).optional(),
+  paidAt: z.string().optional(),
 }).passthrough();
 
 export async function POST(request: Request) {
@@ -55,8 +57,13 @@ export async function POST(request: Request) {
       purchaseEmail: email,
       status,
     });
-    const invitation = status === "active" && email ? await inviteEduzzBuyer(email) : undefined;
-    return NextResponse.json({ received: true, invitation });
+    if (status === "active" && email) {
+      await markEduzzCheckoutPaidBySale({ saleId: invoice.id, email, paidAt: invoice.paidAt && !Number.isNaN(Date.parse(invoice.paidAt)) ? new Date(invoice.paidAt).toISOString() : envelope.sentDate });
+    }
+    const invitation = status === "active" && email ? await inviteEduzzBuyer(email, externalPurchaseId) : undefined;
+    const accessEmail = status !== "active" ? email ?? await getEduzzPurchaseEmail(externalPurchaseId) : undefined;
+    const revokedSessions = accessEmail ? await revokeEduzzBuyerSessions(accessEmail) : undefined;
+    return NextResponse.json({ received: true, invitation, revokedSessions });
   } catch (error) {
     console.error("Failed to process Eduzz webhook", error);
     return NextResponse.json({ error: "Falha ao processar o evento." }, { status: 500 });

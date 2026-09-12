@@ -2,9 +2,11 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
+  getEduzzPurchaseEmail,
   getKnownEduzzPurchaseStatus,
   inviteEduzzBuyer,
   recordEduzzEntitlement,
+  revokeEduzzBuyerSessions,
 } from "@/lib/server/eduzz-entitlements";
 
 const identifierSchema = z.union([z.string(), z.number()]).transform(String);
@@ -73,8 +75,10 @@ export async function POST(request: Request) {
       status: type === "create" ? "active" : getRemovalStatus(fields.edz_fat_status),
     });
 
-    const invitation = type === "create" && email ? await inviteEduzzBuyer(email) : undefined;
-    return NextResponse.json({ received: true, invitation });
+    const invitation = type === "create" && email ? await inviteEduzzBuyer(email, externalPurchaseId) : undefined;
+    const accessEmail = type === "remove" ? email ?? await getEduzzPurchaseEmail(externalPurchaseId) : undefined;
+    const revokedSessions = accessEmail ? await revokeEduzzBuyerSessions(accessEmail) : undefined;
+    return NextResponse.json({ received: true, invitation, revokedSessions });
   } catch (error) {
     console.error("Failed to process Eduzz custom delivery", error);
     return NextResponse.json({ error: "Falha ao processar a entrega." }, { status: 500 });

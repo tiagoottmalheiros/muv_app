@@ -5,11 +5,13 @@ import type { AppData } from "@/lib/types";
 
 export async function GET() {
   try {
+    await assertAuthenticatedStudentAccess();
     const data = await loadDevelopmentStudentState();
-    return NextResponse.json({ data });
+    return NextResponse.json({ data }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     console.error("Failed to load student state", error);
-    return NextResponse.json({ error: "Supabase indisponível ou não configurado." }, { status: 503 });
+    const status = error instanceof StudentAccessError ? 403 : 503;
+    return NextResponse.json({ error: error instanceof StudentAccessError ? error.message : "Supabase indisponível ou não configurado." }, { status });
   }
 }
 

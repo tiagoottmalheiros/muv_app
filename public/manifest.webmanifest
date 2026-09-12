@@ -1,6 +1,6 @@
 {
-  "name": "Central MUV",
-  "short_name": "MUV",
+  "name": "APP MUV",
+  "short_name": "APP MUV",
   "description": "Aplicação guiada para construir seu Filtro Anti-Curiosos com IA",
   "start_url": "/central",
   "display": "standalone",
